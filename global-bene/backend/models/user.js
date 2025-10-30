@@ -1,0 +1,52 @@
+// models/User.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const refreshTokenSchema = new mongoose.Schema({
+  tokenHash: String,
+  createdAt: { type: Date, default: Date.now },
+});
+
+const userSchema = new mongoose.Schema(
+  {
+    username: { type: String, required: true, unique: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: function () { return !this.googleId; } },
+    googleId: { type: String, unique: true, sparse: true },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    emailVerified: { type: Boolean, default: false },
+    emailToken: String,
+    resetToken: String,
+    resetTokenExpires: Date,
+    refreshTokens: [refreshTokenSchema],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    profile: {
+      bio: String,
+      avatarUrl: String,
+      avatarPublicId: String,
+      mobile: String,
+      gender: String,
+      dob: Date,
+    },
+  },
+  { timestamps: true }
+);
+
+// Pre-save hook: hash passwordHash if modified, for non-Google users
+userSchema.pre('save', async function (next) {
+  if (this.isModified('passwordHash') && !this.googleId) {
+    this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
+  }
+  next();
+});
+
+// Instance method to compare password
+userSchema.methods.comparePassword = function (candidatePassword) {
+  if (this.googleId) return Promise.resolve(false);
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
+
+// Safe export to avoid OverwriteModelError:
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+module.exports = User;
