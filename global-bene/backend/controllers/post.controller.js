@@ -27,8 +27,10 @@ exports.createPost = async (req, res) => {
       if (!community) {
         return res.status(404).json({ message: 'Community not found' });
       }
-      // Check if user is a member (for private communities)
-      if (community.isPrivate && !community.members.includes(userId)) {
+      // Check if user is a member or creator
+      const isMember = community.members.includes(userId);
+      const isCreator = community.creator.toString() === userId;
+      if (!isMember && !isCreator) {
         return res.status(403).json({ message: 'You must be a member to post in this community' });
       }
     }

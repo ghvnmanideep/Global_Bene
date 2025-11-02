@@ -58,10 +58,14 @@ export default function Dashboard() {
 
   const loadUser = async () => {
     try {
+      const hasToken = !!sessionStorage.getItem('accessToken');
+      if (!hasToken) return; // don't call if not logged in
       const res = await authService.getMe();
       setUser(res.data);
     } catch (err) {
-      console.error('Error loading user:', err);
+      if (err?.response?.status !== 401) {
+        console.error('Error loading user:', err);
+      }
     }
   };
 

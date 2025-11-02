@@ -16,7 +16,7 @@ export default function Register() {
       setMsg('✅ Registration successful! Please verify your email.');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Error registering. Please try again.');
+      setMsg(err.response?.data?.message || 'Error registering. Please try again.');
     }
   };
 

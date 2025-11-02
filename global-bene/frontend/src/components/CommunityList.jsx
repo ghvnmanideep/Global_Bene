@@ -21,6 +21,9 @@ export default function CommunityList({ communities: propCommunities, onJoin = (
     setJoining({ ...joining, [communityId]: true });
     try {
       await communityService.toggleJoinCommunity(communityId);
+      // Refresh communities list after join/leave
+      const res = await communityService.getAllCommunities();
+      setCommunities(res.data.communities || []);
       onJoin();
     } catch (err) {
       console.error('Error joining community:', err);
@@ -52,7 +55,7 @@ export default function CommunityList({ communities: propCommunities, onJoin = (
                     />
                   ) : (
                     <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">r</span>
+                      <span className="text-white font-bold text-xs">g</span>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -60,7 +63,7 @@ export default function CommunityList({ communities: propCommunities, onJoin = (
                       to={`/community/${community._id}`}
                       className="font-semibold text-gray-900 dark:text-white hover:text-orange-500 block truncate"
                     >
-                      r/{community.name}
+                      g/{community.name}
                     </Link>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {community.memberCount || 0} members

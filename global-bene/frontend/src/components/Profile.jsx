@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { authService } from '../services/authService';
 import PostCard from './PostCard';
 import { postService } from '../services/postService';
+import { communityService } from '../services/communityService';
 
 export default function Profile() {
+  const { id } = useParams(); // Get user ID from URL params
   const [user, setUser] = useState(null);
-  const [profileUser, setProfileUser] = useState(null); // For others' profiles (TODO for route view)
+  const [profileUser, setProfileUser] = useState(null); // For others' profiles
   const [msg, setMsg] = useState('');
   const navigate = useNavigate();
   const [profilePosts, setProfilePosts] = useState([]);
   const [isFollowPending, setIsFollowPending] = useState(false);
+  const [followersDetails, setFollowersDetails] = useState([]);
+  const [followingDetails, setFollowingDetails] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [activeTab, setActiveTab] = useState('posts');
 
   useEffect(() => {
     authService
@@ -18,12 +24,29 @@ export default function Profile() {
       .then((res) => setUser(res.data))
       .catch(() => {
         setUser(null);
-        navigate('/login');
       });
-  }, [navigate]);
+  }, []);
+
+  // Fetch profile user if id is provided (for other users' profiles)
+  useEffect(() => {
+    if (id) {
+      authService.getUserById(id)
+        .then((res) => setProfileUser(res.data))
+        .catch((err) => {
+          console.error('Error fetching user profile:', err);
+          if (!user) {
+            setMsg('Please login to see the users');
+          } else {
+            setMsg('User not found');
+          }
+        });
+    } else {
+      setProfileUser(null); // Reset for own profile
+    }
+  }, [id, user]);
 
   const displayedId = profileUser?._id || user?._id;
-  const isOwnProfile = user && profileUser?._id === user._id;
+  const isOwnProfile = !id || (user && profileUser && profileUser._id === user._id);
   const isFollowing = user && profileUser && user.following && user.following.some(f => (typeof f === 'object' ? f._id : f) === profileUser._id);
   const refreshData = async () => {
     if (profileUser?._id) {
@@ -59,10 +82,49 @@ export default function Profile() {
   }, [displayedId]);
 
   // Helper: get count
-  const followerCount = user?.followers?.length || 0;
-  const followingCount = user?.following?.length || 0;
-  // For the total posts count, use user.posts?.length if available, or placeholder
-  const postCount = user?.posts?.length || 0; // update this if you fetch posts
+  const displayedUser = profileUser || user;
+
+  // Fetch followers and following details
+  useEffect(() => {
+    async function fetchUserDetails() {
+      if (!displayedUser) return;
+
+      const followersIds = displayedUser.followers || [];
+      const followingIds = displayedUser.following || [];
+
+      try {
+        const followersPromises = followersIds.map(id => authService.getUserById(id).catch(() => ({ data: { username: 'Unknown' } })));
+        const followingPromises = followingIds.map(id => authService.getUserById(id).catch(() => ({ data: { username: 'Unknown' } })));
+
+        const followersRes = await Promise.all(followersPromises);
+        const followingRes = await Promise.all(followingPromises);
+
+        setFollowersDetails(followersRes.map(res => res.data));
+        setFollowingDetails(followingRes.map(res => res.data));
+      } catch (err) {
+        console.error('Error fetching user details:', err);
+      }
+    }
+    fetchUserDetails();
+  }, [displayedUser]);
+
+  // Fetch saved posts if it's the user's own profile
+  useEffect(() => {
+    async function fetchSavedPosts() {
+      if (!isOwnProfile) return;
+      try {
+        const res = await communityService.getUserSavedPosts();
+        setSavedPosts(res.data.posts || []);
+      } catch (err) {
+        console.error('Error fetching saved posts:', err);
+      }
+    }
+    fetchSavedPosts();
+  }, [isOwnProfile]);
+  const followerCount = displayedUser?.followers?.length || 0;
+  const followingCount = displayedUser?.following?.length || 0;
+  // For the total posts count, use the actual fetched posts length
+  const postCount = profilePosts.length;
   const followerLabel = followerCount === 1 ? 'Follower' : 'Followers';
   const followingLabel = followingCount === 1 ? 'Following' : 'Following';
 
@@ -78,13 +140,13 @@ export default function Profile() {
       {/* Profile Avatar and Username */}
       <div className="flex flex-col items-center bg-gradient-to-r from-orange-200 via-white to-orange-100 rounded-2xl shadow-lg p-8 mb-6 border border-orange-300">
         <img
-          src={user.profile?.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
-          alt={`${user.username}'s avatar`}
+          src={displayedUser.profile?.avatarUrl || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y'}
+          alt={`${displayedUser.username}'s avatar`}
           className="w-32 h-32 rounded-full border-4 border-orange-500 shadow-lg mb-4 object-cover hover:scale-105 transition-transform"
         />
-        <h1 className="text-4xl font-black text-orange-900 mb-1">{user.username}</h1>
-        <p className="text-gray-500 mb-2">{user.email}</p>
-        {user.googleId && (
+        <h1 className="text-4xl font-black text-orange-900 mb-1">{displayedUser.username}</h1>
+        <p className="text-gray-500 mb-2">{displayedUser.email}</p>
+        {displayedUser.googleId && (
           <div className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs mb-2 font-medium">
             Signed in with Google
           </div>
@@ -126,12 +188,14 @@ export default function Profile() {
           </div>
         </div>
         <div className="flex gap-2 justify-center mt-4">
-          <Link
-            to="/edit-profile"
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full font-bold shadow transition"
-          >
-            Edit Profile
-          </Link>
+          {isOwnProfile && (
+            <Link
+              to="/edit-profile"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full font-bold shadow transition"
+            >
+              Edit Profile
+            </Link>
+          )}
           <button
             onClick={() => document.getElementById('posts-section')?.scrollIntoView({ behavior: 'smooth' })}
             className="bg-white hover:bg-orange-50 border border-orange-400 text-orange-700 px-6 py-2 rounded-full font-bold shadow ml-2 transition"
@@ -144,19 +208,19 @@ export default function Profile() {
       {/* Followers/Following Chips */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 mb-6 flex flex-col gap-2">
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {(user.followers || []).length > 0 ? (
-            user.followers.map(id => (
-              <Link to={`/profile/${id}`} key={id} className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
-                {id}
+          {followersDetails.length > 0 ? (
+            followersDetails.map(user => (
+              <Link to={`/profile/${user._id}`} key={user._id} className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
+                {user.username}
               </Link>
             ))
           ) : <span className="text-xs italic text-gray-400">No followers yet.</span>}
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {(user.following || []).length > 0 ? (
-            user.following.map(id => (
-              <Link to={`/profile/${id}`} key={id} className="inline-block px-3 py-1 bg-orange-50 text-orange-600 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
-                {id}
+          {followingDetails.length > 0 ? (
+            followingDetails.map(user => (
+              <Link to={`/profile/${user._id}`} key={user._id} className="inline-block px-3 py-1 bg-orange-50 text-orange-600 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
+                {user.username}
               </Link>
             ))
           ) : <span className="text-xs italic text-gray-400">Not following anyone yet.</span>}
@@ -167,19 +231,19 @@ export default function Profile() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow border border-orange-100">
           <h2 className="font-bold mb-2 text-orange-700">Bio</h2>
-          <p className="text-gray-700 dark:text-gray-200 min-h-[40px]">{user.profile?.bio || 'No bio available.'}</p>
+          <p className="text-gray-700 dark:text-gray-200 min-h-[40px]">{displayedUser.profile?.bio || 'No bio available.'}</p>
         </div>
         <div className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow border border-orange-100">
           <h2 className="font-bold mb-2 text-orange-700">Mobile</h2>
-          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{user.profile?.mobile || 'Not provided'}</p>
+          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{displayedUser.profile?.mobile || 'Not provided'}</p>
         </div>
         <div className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow border border-orange-100">
           <h2 className="font-bold mb-2 text-orange-700">Gender</h2>
-          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{user.profile?.gender || 'Not specified'}</p>
+          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{displayedUser.profile?.gender || 'Not specified'}</p>
         </div>
         <div className="rounded-xl bg-white dark:bg-gray-800 p-4 shadow border border-orange-100">
           <h2 className="font-bold mb-2 text-orange-700">Date of Birth</h2>
-          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{user.profile?.dob ? new Date(user.profile.dob).toLocaleDateString() : 'Not specified'}</p>
+          <p className="text-gray-700 dark:text-gray-200 min-h-[32px]">{displayedUser.profile?.dob ? new Date(displayedUser.profile.dob).toLocaleDateString() : 'Not specified'}</p>
         </div>
       </div>
       {/* Message Section */}
@@ -189,19 +253,58 @@ export default function Profile() {
         </p>
       )}
 
+      {/* Tabs for Posts and Saved Posts */}
+      {isOwnProfile && (
+        <div className="mt-12 mb-6">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`px-4 py-2 font-semibold ${activeTab === 'posts' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-600 hover:text-orange-600'}`}
+            >
+              Posts
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`px-4 py-2 font-semibold ${activeTab === 'saved' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-600 hover:text-orange-600'}`}
+            >
+              Saved Posts
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* User posts section anchor */}
       <div id="posts-section" className="mt-12">
-        <h2 className="text-2xl font-bold mb-4 text-orange-800">Posts by {profileUser?._id ? profileUser.username : user.username}</h2>
-        {profilePosts.length === 0 ? (
-          <p className="p-8 text-center text-gray-500">No posts yet.</p>
-        ) : (
-          <div className="space-y-4">
-            {profilePosts
-              .filter(post => post.author && post.author._id === displayedId)
-              .map(post => (
-                <PostCard key={post._id} post={post} onUpdate={() => {}} />
-              ))}
-          </div>
+        {activeTab === 'posts' && (
+          <>
+            <h2 className="text-2xl font-bold mb-4 text-orange-800">Posts by {displayedUser.username}</h2>
+            {profilePosts.length === 0 ? (
+              <p className="p-8 text-center text-gray-500">No posts yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {profilePosts
+                  .filter(post => post.author && post.author._id === displayedId)
+                  .map(post => (
+                    <PostCard key={post._id} post={post} onUpdate={() => {}} />
+                  ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'saved' && isOwnProfile && (
+          <>
+            <h2 className="text-2xl font-bold mb-4 text-orange-800">Saved Posts</h2>
+            {savedPosts.length === 0 ? (
+              <p className="p-8 text-center text-gray-500">No saved posts yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {savedPosts.map(post => (
+                  <PostCard key={post._id} post={post} onUpdate={() => {}} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

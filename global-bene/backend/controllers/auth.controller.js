@@ -3,6 +3,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
+const { OAuth2Client } = require('google-auth-library');
+
+
+// Initialize Google OAuth2 client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  // Helper to generate JWT
 
 // Environment variables or defaults
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
@@ -50,12 +56,24 @@ exports.register = async (req, res) => {
     const { username, email, password, role } = req.body;
     const userRole = role || 'user';
 
+    // Validate password strength
+    if (!strongPassword(password)) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters, include uppercase, lowercase, number and symbol' });
+    }
+
+    // Trim and prepare data
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
     // Check existing user
-    const existing = await User.findOne({ $or: [{ email }, { username }] });
-    if (existing) return res.status(400).json({ message: 'User already exists' });
+    const existingEmail = await User.findOne({ email: trimmedEmail });
+    if (existingEmail) return res.status(400).json({ message: 'Email already exists' });
+
+    const existingUsername = await User.findOne({ username: trimmedUsername.toLowerCase() });
+    if (existingUsername) return res.status(400).json({ message: 'Username already exists' });
 
     // Store plain password - pre-save hook will hash it
-    const user = new User({ username, email, passwordHash: password, role: userRole });
+    const user = new User({ username: trimmedUsername, email: trimmedEmail, passwordHash: password, role: userRole });
     await user.save();
 
     // Generate email verification token
@@ -131,8 +149,49 @@ exports.verifyEmail = async (req, res) => {
     user.emailToken = undefined;
     await user.save();
 
-    const html = `<p>Welcome ${user.username}! Your email is now verified.</p>`;
-    await sendMail({ to: user.email, subject: 'Welcome!', html });
+    const html = `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
+              <tr>
+                <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
+                  <table width="100%">
+                    <tr>
+                      <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
+                        Global Bene
+                      </td>
+                      <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
+                        Welcome
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
+                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome to Global Bene, ${user.username}!</h1>
+                  <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
+                    Your email has been successfully verified. You can now fully access all features of Global Bene.
+                  </p>
+                  <div style="text-align:center;margin:26px 0 8px;">
+                    <a href="${process.env.FRONTEND_URL}/login" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
+                      Get Started
+                    </a>
+                  </div>
+                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">Explore communities, create posts, and connect with others.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
+                  You received this email because you verified your account on Global Bene.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>`;
+    await sendMail({ to: user.email, subject: 'Welcome to Global Bene!', html });
     res.json({ message: 'Email verified successfully' });
   } catch (err) {
     console.error('Email verify error:', err);
@@ -169,6 +228,52 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid username or password' });
 
     const token = createAccessToken(user);
+
+    // Send welcome email on successful login
+    const welcomeHtml = `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
+              <tr>
+                <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
+                  <table width="100%">
+                    <tr>
+                      <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
+                        Global Bene
+                      </td>
+                      <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
+                        Welcome Back
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
+                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
+                  <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
+                    You have successfully logged in to Global Bene. Enjoy exploring communities and connecting with others.
+                  </p>
+                  <div style="text-align:center;margin:26px 0 8px;">
+                    <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
+                      Go to Dashboard
+                    </a>
+                  </div>
+                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't log in, please secure your account immediately.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
+                  You received this email because you logged in to Global Bene.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>`;
+    await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+
     res.json({
       accessToken: token,
       token, // Keep both for backward compatibility
@@ -288,9 +393,23 @@ exports.getMe = async (req, res) => {
 // --------- UPDATE PROFILE ---------
 exports.updateProfile = async (req, res) => {
   try {
-    const { bio, mobile, gender, dob } = req.body;
+    const { bio, mobile, gender, dob, username } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Handle username change
+    if (username !== undefined) {
+      const trimmedUsername = username.trim();
+      const lowerUsername = trimmedUsername.toLowerCase();
+      if (lowerUsername !== user.username.toLowerCase()) {
+        // Check if new username is taken by another user
+        const existingUsername = await User.findOne({ username: lowerUsername });
+        if (existingUsername && existingUsername._id.toString() !== user._id.toString()) {
+          return res.status(400).json({ message: 'Username already exists' });
+        }
+        user.username = lowerUsername;
+      }
+    }
 
     if (req.file && req.file.path) {
       user.profile.avatarUrl = req.file.path;
@@ -307,7 +426,7 @@ exports.updateProfile = async (req, res) => {
     };
 
     await user.save();
-    res.json({ message: 'Profile updated', profile: user.profile });
+    res.json({ message: 'Profile updated', profile: user.profile, username: user.username });
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ message: 'Server error' });
@@ -335,53 +454,98 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-// --------- GOOGLE LOGIN (ID TOKEN) ---------
-const { OAuth2Client } = require('google-auth-library');
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '551070839040-qh22gqelveth5aaiqfan1fm43v0tvs7s.apps.googleusercontent.com';
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-exports.googleLogin = async (req, res) => {
+
+// ------------------------ GOOGLE LOGIN ------------------------
+exports.googleAuth = async (req, res) => {
   try {
-    const { tokenId } = req.body;
-    if (!tokenId) return res.status(400).json({ message: 'No token provided' });
-    // Verify token
-    const ticket = await googleClient.verifyIdToken({ idToken: tokenId, audience: GOOGLE_CLIENT_ID });
-    const payload = ticket.getPayload();
-    const { email, name, email_verified, sub: googleId } = payload;
-    if (!email_verified) return res.status(401).json({ message: 'Google account email not verified' });
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: "Missing Google token" });
 
-    // Try to find by email (prefer email uniqueness)
+    // Verify token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    const { email, name, picture, sub } = payload;
+
     let user = await User.findOne({ email });
-    // If not, create new user
+
     if (!user) {
-      // unique username from name or email
-      let baseUsername = (name || email).replace(/\s+/g, '');
-      let username = baseUsername;
-      let suffix = 1;
-      while (await User.findOne({ username })) username = `${baseUsername}${suffix++}`;
-      user = new User({ username, email, emailVerified: true, googleId, passwordHash: '' });
-      await user.save();
-    } else if (!user.googleId) {
-      // Link existing non-Google account with googleId (OPTIONAL: comment out if not desired)
-      user.googleId = googleId;
-      user.emailVerified = true;
+      // New user
+      user = new User({
+        username: name.replace(/\s+/g, "").toLowerCase(),
+        email,
+        googleId: sub,
+        emailVerified: true,
+        profile: { avatarUrl: picture },
+      });
       await user.save();
     }
-    
-    const token = jwt.sign(
-      { id: user._id, username: user.username, role: user.role || 'user' },
-      JWT_SECRET,
-      { expiresIn: '1d' }
-    );
-    // Return same as classic login
-    res.json({
-      token,
-      _id: user._id.toString(),
-      username: user.username,
-      role: user.role || 'user'
+
+    // Generate JWT
+    const accessToken = createAccessToken(user);
+
+    // Send welcome email on successful Google sign-in
+    const welcomeHtml = `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
+        <tr>
+          <td align="center">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
+              <tr>
+                <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
+                  <table width="100%">
+                    <tr>
+                      <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
+                        Global Bene
+                      </td>
+                      <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
+                        Welcome Back
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
+                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
+                  <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
+                    You have successfully signed in to Global Bene with Google. Enjoy exploring communities and connecting with others.
+                  </p>
+                  <div style="text-align:center;margin:26px 0 8px;">
+                    <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
+                      Go to Dashboard
+                    </a>
+                  </div>
+                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't sign in, please secure your account immediately.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
+                  You received this email because you signed in to Global Bene with Google.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>`;
+    await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+
+    res.status(200).json({
+      success: true,
+      message: "Google login successful",
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role || "user",
+      },
+      token: accessToken,
     });
-  } catch (err) {
-    console.error('Google login error:', err);
-    res.status(401).json({ message: 'Invalid Google token' });
+  } catch (error) {
+    console.error("Google Auth Error:", error);
+    res.status(500).json({ message: "Server error during Google authentication" });
   }
 };

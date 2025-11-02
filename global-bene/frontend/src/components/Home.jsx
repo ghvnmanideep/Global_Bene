@@ -4,6 +4,7 @@ import { postService } from '../services/postService';
 import { communityService } from '../services/communityService';
 import { userService } from '../services/userService';
 import PostCard from './PostCard';
+import CommunityList from './CommunityList';
 
 export default function Home({ darkMode }) {
   const [posts, setPosts] = useState([]);
@@ -39,7 +40,7 @@ export default function Home({ darkMode }) {
     const load = async () => {
       try {
         const [postRes, commRes] = await Promise.all([
-          postService.getAllPosts({ sortBy, page, limit, category, search }),
+          postService.getAllPosts({ sortBy, page, limit, category, search }).catch(() => ({ data: { posts: [], pagination: { pages: 1 } } })),
           communityService.getAllCommunities({ limit: 5 }),
         ]);
         setPosts(postRes.data.posts || []);
@@ -207,23 +208,10 @@ export default function Home({ darkMode }) {
 
           {/* Sidebar with communities */}
           <aside className="w-full lg:w-80 space-y-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Popular Communities</h3>
-              <div className="space-y-3">
-                {communities.map(c => (
-                  <div key={c._id} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">r</div>
-                      <span className="truncate">r/{c.name}</span>
-                    </div>
-                    <span className="text-xs text-gray-500">{c.memberCount || 0} members</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 text-right">
-                <Link to="/login" className="text-sm text-orange-500 hover:text-orange-600 font-semibold">Join</Link>
-              </div>
-            </div>
+            <CommunityList communities={communities} onJoin={() => {
+              // Refresh communities after join/leave
+              communityService.getAllCommunities({ limit: 5 }).then(res => setCommunities(res.data.communities || []));
+            }} />
           </aside>
         </div>
       </main>

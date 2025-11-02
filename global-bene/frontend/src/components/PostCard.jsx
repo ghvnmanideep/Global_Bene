@@ -33,23 +33,34 @@ function MiniProfileModal({ userId, onClose }) {
   const isOwnProfile = user && profile && user._id === profile._id;
   const isFollowing = user && profile && user.following && user.following.some(f => (typeof f === 'object' ? f._id : f) === profile._id);
   const handleFollow = async () => {
-    setIsFollowPending(true);
-    await authService.followUser(profile._id);
-    // Re-fetch profile and user
-    const res = await authService.getUserById(profile._id);
-    setProfile(res.data);
-    const me = await authService.getMe();
-    setUser(me.data);
-    setIsFollowPending(false);
+    try {
+      setIsFollowPending(true);
+      await authService.followUser(profile._id);
+      const res = await authService.getUserById(profile._id);
+      setProfile(res.data);
+      const me = await authService.getMe();
+      setUser(me.data);
+    } catch (e) {
+      console.error('Follow error:', e);
+      alert(e?.response?.data?.message || 'Failed to follow user');
+    } finally {
+      setIsFollowPending(false);
+    }
   };
   const handleUnfollow = async () => {
-    setIsFollowPending(true);
-    await authService.unfollowUser(profile._id);
-    const res = await authService.getUserById(profile._id);
-    setProfile(res.data);
-    const me = await authService.getMe();
-    setUser(me.data);
-    setIsFollowPending(false);
+    try {
+      setIsFollowPending(true);
+      await authService.unfollowUser(profile._id);
+      const res = await authService.getUserById(profile._id);
+      setProfile(res.data);
+      const me = await authService.getMe();
+      setUser(me.data);
+    } catch (e) {
+      console.error('Unfollow error:', e);
+      alert(e?.response?.data?.message || 'Failed to unfollow user');
+    } finally {
+      setIsFollowPending(false);
+    }
   };
 
   if (loading || !profile)

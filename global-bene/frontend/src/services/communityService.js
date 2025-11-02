@@ -26,5 +26,6 @@ export const communityService = {
   toggleJoinCommunity: (id) => api.post(`/communities/${id}/join`),
   updateCommunity: (id, data) => api.put(`/communities/${id}`, data),
   getUserSavedPosts: () => api.get('/communities/user/saved'),
+  getUserCommunities: () => api.get('/communities/user/joined'),
 };
 

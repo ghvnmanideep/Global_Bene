@@ -7,6 +7,7 @@ const { authRequired } = require('../middleware/auth.middleware');
 router.get('/', communityController.getAllCommunities);
 router.get('/:id', communityController.getCommunityById);
 router.get('/user/saved', authRequired, communityController.getUserSavedPosts);
+router.get('/user/joined', authRequired, communityController.getUserCommunities);
 
 // Protected routes
 router.post('/', authRequired, communityController.createCommunity);

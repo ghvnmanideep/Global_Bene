@@ -6,7 +6,7 @@ export default function EditProfile() {
   const [user, setUser] = useState(null);
   const [preview, setPreview] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
-  const [formData, setFormData] = useState({ bio: '', mobile: '', gender: '', dob: '' });
+  const [formData, setFormData] = useState({ username: '', bio: '', mobile: '', gender: '', dob: '' });
   const [msg, setMsg] = useState('');
   const navigate = useNavigate();
 
@@ -17,6 +17,7 @@ export default function EditProfile() {
         const data = res.data;
         setUser(data);
         setFormData({
+          username: data.username || '',
           bio: data.profile?.bio || '',
           mobile: data.profile?.mobile || '',
           gender: data.profile?.gender || '',
@@ -48,6 +49,7 @@ export default function EditProfile() {
 
     try {
       const uploadData = new FormData();
+      uploadData.append('username', formData.username);
       uploadData.append('bio', formData.bio);
       uploadData.append('mobile', formData.mobile);
       uploadData.append('gender', formData.gender);
@@ -89,6 +91,21 @@ export default function EditProfile() {
             Upload Avatar
             <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
           </label>
+        </div>
+
+        <div>
+          <label htmlFor="username" className="block mb-1 font-medium text-gray-700 dark:text-gray-300">
+            Username
+          </label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value={formData.username}
+            onChange={handleInputChange}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+            placeholder="Enter your username"
+          />
         </div>
 
         <div>

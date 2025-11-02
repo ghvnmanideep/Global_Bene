@@ -1,25 +1,32 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import axiosInstance from "../utils/axiosinstance.js";
+import GLogin from "../components/GLogin.jsx";
+
+const CLIENT_ID =
+  "551070839040-qh22gqelveth5aaiqfan1fm43v0tvs7s.apps.googleusercontent.com";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [msg, setMsg] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setMsg('');
     try {
-      const { data } = await authService.login(form);
-      sessionStorage.setItem('accessToken', data.accessToken || data.token);
-      // Store user data
-      sessionStorage.setItem('user', JSON.stringify({ _id: data._id, username: data.username }));
-      setMsg('✅ Logged in successfully!');
-      setTimeout(() => navigate('/dashboard'), 1000);
+      const res = await axiosInstance.post("/auth/login", { username, password });
+      const { accessToken, _id, username: userName, role } = res.data;
+
+      sessionStorage.setItem("accessToken", accessToken);
+      sessionStorage.setItem(
+        "user",
+        JSON.stringify({ _id, username: userName, role, accessToken })
+      );
+      navigate("/dashboard");
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Login failed');
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -27,48 +34,48 @@ export default function Login() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-md p-8">
         <h1 className="text-2xl font-semibold text-center text-gray-900 dark:text-gray-100 mb-6">
-          Log In to Global Bene
+          Global Bene
         </h1>
+        <h2 className="text-2xl font-semibold text-center text-gray-900 dark:text-gray-100 mb-6">
+          Sign In
+        </h2>
 
-        {msg && (
-          <div
-            className={`mb-4 p-3 rounded text-center ${
-              msg.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800 animate-pulse'
-            }`}
-          >
-            {msg}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
-              Email address
+            <label
+              htmlFor="username"
+              className="block text-gray-700 dark:text-gray-300 font-medium mb-1"
+            >
+              Username
             </label>
             <input
-              type="email"
-              id="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              type="text"
+              id="username"
               required
-              placeholder="you@example.com"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+              placeholder="Enter your username"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-gray-700 dark:text-gray-300 font-medium mb-1">
+            <label
+              htmlFor="password"
+              className="block text-gray-700 dark:text-gray-300 font-medium mb-1"
+            >
               Password
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                placeholder="••••••••"
+                value={password}
+                autoComplete="current-password"
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
+                placeholder="Enter your password"
               />
               <button
                 type="button"
@@ -85,25 +92,22 @@ export default function Login() {
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md shadow-sm transition"
           >
-            Log In
+            Sign In
           </button>
         </form>
 
-        <div className="mt-4 flex justify-between text-sm text-blue-600 dark:text-blue-400">
-          <Link to="/forgot" className="hover:underline">
-            Forgot password?
+        <p className="mt-4 text-center text-sm text-gray-700 dark:text-gray-300">
+          New user?{" "}
+          <Link to="/register" className="text-blue-600 hover:underline">
+            Register here
           </Link>
-          <Link to="/register" className="hover:underline">
-            Create an account
-          </Link>
-        </div>
+        </p>
 
-        <a
-          href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/google`}
-          className="block w-full text-center py-3 bg-red-600 hover:bg-red-700 text-white rounded font-semibold mt-6"
-        >
-          Sign in with Google
-        </a>
+        <div className="mt-6 flex justify-center">
+          <GoogleOAuthProvider clientId={CLIENT_ID}>
+            <GLogin />
+          </GoogleOAuthProvider>
+        </div>
       </div>
     </div>
   );

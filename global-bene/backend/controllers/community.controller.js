@@ -88,21 +88,33 @@ exports.getAllCommunities = async (req, res) => {
 exports.getCommunityById = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user ? req.user.id : null;
 
     const community = await Community.findById(id)
-      .populate('creator', 'username profile')
-      .populate({
-        path: 'posts',
-        options: { limit: 10, sort: { createdAt: -1 } },
-        populate: {
-          path: 'author',
-          select: 'username',
-        },
-      });
+      .populate('creator', 'username profile');
 
     if (!community) {
       return res.status(404).json({ message: 'Community not found' });
     }
+
+    // Check if user is a member
+    const isMember = userId && community.members.includes(userId);
+
+    // Populate posts: show all for members, limited for non-members
+    const populateOptions = {
+      path: 'posts',
+      options: { sort: { createdAt: -1 } },
+      populate: {
+        path: 'author',
+        select: 'username',
+      },
+    };
+
+    if (!isMember) {
+      populateOptions.options.limit = 10;
+    }
+
+    await community.populate(populateOptions);
 
     res.json(community);
   } catch (err) {
@@ -171,6 +183,22 @@ exports.updateCommunity = async (req, res) => {
   } catch (err) {
     console.error('Update community error:', err);
     res.status(500).json({ message: 'Server error updating community' });
+  }
+};
+
+// Get user's joined communities
+exports.getUserCommunities = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const communities = await Community.find({ members: userId })
+      .populate('creator', 'username')
+      .sort({ createdAt: -1 });
+
+    res.json({ communities });
+  } catch (err) {
+    console.error('Get user communities error:', err);
+    res.status(500).json({ message: 'Server error fetching user communities' });
   }
 };
 

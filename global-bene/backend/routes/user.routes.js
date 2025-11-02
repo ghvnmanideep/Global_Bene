@@ -7,8 +7,8 @@ const parser = require('../utils/multer.cloudinary');
 router.get('/me', authRequired, userController.getMe);
 router.put('/update', authRequired, parser.single('avatar'), userController.updateProfile);
 router.put('/password', authRequired, userController.changePassword);
-router.put('/follow/:id', authRequired, userController.followUser);
-router.put('/unfollow/:id', authRequired, userController.unfollowUser);
+router.post("/:id/follow", authRequired, userController.followUser);
+router.post("/:id/unfollow", authRequired, userController.unfollowUser);
 router.get('/search', userController.searchUsers);
-
+router.get("/:id", userController.getUserById);
 module.exports = router;
