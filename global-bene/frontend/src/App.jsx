@@ -20,6 +20,11 @@ import CreateCommunity from './components/CreateCommunity';
 import UserCommunities from './components/UserCommunities';
 import ContactUs from './components/ContactUs';
 import GLogin from './components/GLogin';
+import AdminUserManagement from './components/AdminUserManagement';
+import AdminPostManagement from './components/AdminPostManagement';
+import AdminNotifications from './components/AdminNotifications';
+import AdminSpamReports from './components/AdminSpamReports';
+import AdminDashboard from './components/AdminDashboard';
 import { communityService } from './services/communityService';
 
 import Notifications from './components/Notifications';
@@ -120,6 +125,9 @@ export default function App() {
                     <Link to="/create-post" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Create Post</Link>
                     <Link to="/create-community" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Create Community</Link>
                     <Link to="/dashboard" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Dashboard</Link>
+                    {user?.role === 'admin' && (
+                      <Link to="/admin" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Admin Panel</Link>
+                    )}
                     <Link to="/notifications" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Notifications</Link>
                     <Link to="/profile" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>{sidebarOpen ? (user?.username || 'Profile') : '👤'}</Link>
                     <Link to="/search" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Search</Link>
@@ -188,6 +196,11 @@ export default function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/users" element={<AdminUserManagement />} />
+            <Route path="/admin/posts" element={<AdminPostManagement />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
+            <Route path="/admin/spam" element={<AdminSpamReports />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:id" element={<Profile />} />

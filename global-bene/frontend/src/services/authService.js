@@ -54,6 +54,28 @@ export const authService = {
   // User utilities
   searchUsers: (query) => api.get("/users/search", { params: { q: query } }),
   getUserById: (id) => api.get(`/users/${id}`),
+  // Admin services
+  admin: {
+    // User management
+    getAllUsers: (params) => api.get("/admin/users", { params }),
+    deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+    updateUserRole: (userId, role) => api.put(`/admin/users/${userId}/role`, { role }),
+
+    // Post management
+    getAllPosts: (params) => api.get("/admin/posts", { params }),
+    deletePost: (postId) => api.delete(`/admin/posts/${postId}`),
+
+    // Notifications
+    sendNotificationToUser: (userId, data) => api.post(`/admin/notifications/user/${userId}`, data),
+    sendNotificationToAll: (data) => api.post("/admin/notifications/all", data),
+
+    // Dashboard
+    getDashboardStats: () => api.get("/admin/dashboard/stats"),
+
+    // Spam management
+    reportPost: (postId, reason) => api.post(`/admin/posts/${postId}/report`, { reason }),
+    getReportedPosts: (params) => api.get("/admin/posts/reported", { params }),
+  },
 };
 
 export default authService;
