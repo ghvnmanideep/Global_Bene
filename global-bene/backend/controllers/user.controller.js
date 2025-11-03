@@ -155,6 +155,7 @@
 // };
 // backend/controllers/user.controller.js
 const User = require("../models/user");
+const { createNotification } = require('./notification.controller');
 
 // =================== GET CURRENT USER ===================
 exports.getMe = async (req, res) => {
@@ -265,6 +266,9 @@ exports.followUser = async (req, res) => {
     target.followers.push(userId);
     await me.save();
     await target.save();
+
+    // Create notification for the followed user
+    await createNotification(targetUserId, 'follow', `${me.username} started following you`, userId);
 
     res.json({ success: true, message: "Followed user." });
   } catch (err) {

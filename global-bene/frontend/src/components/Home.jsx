@@ -12,7 +12,7 @@ export default function Home({ darkMode }) {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('hot');
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
@@ -92,31 +92,31 @@ export default function Home({ darkMode }) {
   return (
     <div className={`min-h-screen font-sans ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'} transition-colors duration-500`}>
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
           {/* Posts Section */}
           <div className="w-full lg:flex-1 min-w-0">
             {/* Buttons to sort posts */}
             <div className="bg-white dark:bg-gray-800 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-1 p-2">
+              <div className="flex flex-wrap items-center gap-1 p-2">
                 <button
                   onClick={() => setSortBy('hot')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${sortBy==='hot' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${sortBy==='hot' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                 >🔥 Hot</button>
                 <button
                   onClick={() => setSortBy('new')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${sortBy==='new' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${sortBy==='new' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                 >⭐ New</button>
                 <button
                   onClick={() => setSortBy('top')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${sortBy==='top' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${sortBy==='top' ? 'bg-gray-100 dark:bg-gray-700 text-orange-500' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                 >⬆️ Top</button>
               </div>
             </div>
 
             {/* Add filter/search bar above posts */}
-            <div className="flex flex-col sm:flex-row items-center gap-2 mb-6 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg">
-              <select value={searchMode} onChange={e => setSearchMode(e.target.value)} className="p-2 border rounded bg-white dark:bg-slate-800 dark:text-white shadow">
+            <div className="flex flex-col sm:flex-row items-center gap-2 mb-4 md:mb-6 bg-slate-50 dark:bg-slate-900 p-3 md:p-4 rounded-lg">
+              <select value={searchMode} onChange={e => setSearchMode(e.target.value)} className="w-full sm:w-auto p-2 border rounded bg-white dark:bg-slate-800 dark:text-white shadow text-sm">
                 <option value="all">All</option>
                 <option value="posts">Posts</option>
                 <option value="users">Users</option>
@@ -124,10 +124,10 @@ export default function Home({ darkMode }) {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="flex-1 p-2 border border-gray-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow"
+                className="flex-1 w-full sm:w-auto p-2 border border-gray-400 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 shadow text-sm"
                 placeholder="Search anything..."
               />
-              <button onClick={handleUnifiedSearch} className="bg-orange-600 dark:bg-orange-400 text-white dark:text-slate-900 px-4 py-2 rounded font-bold shadow hover:bg-orange-700 dark:hover:bg-orange-300 transition">Search</button>
+              <button onClick={handleUnifiedSearch} className="w-full sm:w-auto bg-orange-600 dark:bg-orange-400 text-white dark:text-slate-900 px-4 py-2 rounded font-bold shadow hover:bg-orange-700 dark:hover:bg-orange-300 transition text-sm">Search</button>
             </div>
 
             {showingSearch && (
@@ -189,25 +189,27 @@ export default function Home({ darkMode }) {
                   ))}
                 </div>
                 {/* Pagination */}
-                <div className="mt-6 flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className={`px-3 py-2 rounded border text-sm ${page <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} border-gray-300 dark:border-gray-700`}
-                  >Prev</button>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Page {page} of {totalPages}</span>
-                  <button
-                    onClick={() => setPage(p => Math.min(p + 1, totalPages))}
-                    disabled={page >= totalPages}
-                    className={`px-3 py-2 rounded border text-sm ${page >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} border-gray-300 dark:border-gray-700`}
-                  >Next</button>
+                <div className="mt-4 md:mt-6 flex flex-col sm:flex-row items-center justify-center gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className={`px-3 py-2 rounded border text-sm ${page <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} border-gray-300 dark:border-gray-700 w-full sm:w-auto`}
+                    >Prev</button>
+                    <button
+                      onClick={() => setPage(p => Math.min(p + 1, totalPages))}
+                      disabled={page >= totalPages}
+                      className={`px-3 py-2 rounded border text-sm ${page >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} border-gray-300 dark:border-gray-700 w-full sm:w-auto`}
+                    >Next</button>
+                  </div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400 text-center">Page {page} of {totalPages}</span>
                 </div>
               </>
             )}
           </div>
 
           {/* Sidebar with communities */}
-          <aside className="w-full lg:w-80 space-y-4">
+          <aside className="w-full lg:w-80 space-y-4 order-first lg:order-last">
             <CommunityList communities={communities} onJoin={() => {
               // Refresh communities after join/leave
               communityService.getAllCommunities({ limit: 5 }).then(res => setCommunities(res.data.communities || []));

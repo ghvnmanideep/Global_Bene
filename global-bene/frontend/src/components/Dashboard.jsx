@@ -22,6 +22,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [userResults, setUserResults] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [totalCommunities, setTotalCommunities] = useState(0);
 
   useEffect(() => {
     loadUser();
@@ -71,10 +73,11 @@ export default function Dashboard() {
 
   const loadPosts = async () => {
     try {
-      const params = { sortBy };
+      const params = { sortBy, limit: 20 };
       if (search && search.trim()) params.search = search.trim();
       const res = await postService.getAllPosts(params);
       setPosts(res.data.posts || []);
+      setTotalPosts(res.data.pagination?.total || 0);
     } catch (err) {
       console.error('Error loading posts:', err);
     } finally {
@@ -86,6 +89,7 @@ export default function Dashboard() {
     try {
       const res = await communityService.getAllCommunities({ limit: 10 });
       setCommunities(res.data.communities || []);
+      setTotalCommunities(res.data.pagination?.total || 0);
     } catch (err) {
       console.error('Error loading communities:', err);
     }
@@ -118,22 +122,22 @@ export default function Dashboard() {
       {/* Reddit-like Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4 py-2 md:py-0">
             <Link to="/dashboard" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                 <span className="text-white font-bold text-lg">r</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">GlobalBene</span>
+              <span className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">GlobalBene</span>
             </Link>
 
-            <div className="flex items-center space-x-4">
-              <div className="hidden sm:block relative">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <div className="relative flex-1 sm:flex-none">
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search users or posts..."
-                  className="w-64 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-full sm:w-64 px-3 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
                   onFocus={() => {if (userResults.length || posts.length) setShowDropdown(true);}}
                   onBlur={() => setTimeout(()=>setShowDropdown(false),150)}
                 />
@@ -174,26 +178,28 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => setShowCreatePost(true)}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold text-sm"
-              >
-                Create Post
-              </button>
-              <button
-                onClick={() => setShowCreateCommunity(true)}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold text-sm"
-              >
-                Create Community
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCreatePost(true)}
+                  className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold text-sm"
+                >
+                  Create Post
+                </button>
+                <button
+                  onClick={() => setShowCreateCommunity(true)}
+                  className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-semibold text-sm"
+                >
+                  Create Community
+                </button>
+              </div>
               {user && (
-                <Link to="/profile" className="flex items-center space-x-2">
+                <Link to="/profile" className="flex items-center space-x-2 justify-center sm:justify-start">
                   <img
                     src={user.profile?.avatarUrl || 'https://www.gravatar.com/avatar/?d=mp'}
                     alt={user.username}
                     className="w-8 h-8 rounded-full"
                   />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{user.username}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{user.username}</span>
                 </Link>
               )}
             </div>
@@ -201,16 +207,16 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
           {/* Main Content */}
           <div className="w-full lg:flex-1 min-w-0">
             {/* Sort Tabs */}
             <div className="bg-white dark:bg-gray-800 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-1 p-2">
+              <div className="flex flex-wrap items-center gap-1 p-2">
                 <button
                   onClick={() => setSortBy('hot')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${
                     sortBy === 'hot'
                       ? 'bg-gray-100 dark:bg-gray-700 text-orange-500'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -220,7 +226,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setSortBy('new')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${
                     sortBy === 'new'
                       ? 'bg-gray-100 dark:bg-gray-700 text-orange-500'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -230,7 +236,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => setSortBy('top')}
-                  className={`px-4 py-2 rounded text-sm font-semibold ${
+                  className={`px-3 md:px-4 py-2 rounded text-sm font-semibold ${
                     sortBy === 'top'
                       ? 'bg-gray-100 dark:bg-gray-700 text-orange-500'
                       : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -256,7 +262,7 @@ export default function Dashboard() {
           </div>
 
           {/* Sidebar */}
-          <aside className="w-full lg:w-80 space-y-4">
+          <aside className="w-full lg:w-80 space-y-4 order-first lg:order-last">
             {/* Communities Sidebar */}
             <CommunityList communities={communities} onJoin={loadCommunities} />
 
@@ -266,11 +272,11 @@ export default function Dashboard() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Total Posts</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{posts.length}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{totalPosts}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Communities</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">{communities.length}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white">{totalCommunities}</span>
                 </div>
               </div>
             </div>

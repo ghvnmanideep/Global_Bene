@@ -14,9 +14,12 @@ const postRoutes = require('./routes/post.routes');
 const communityRoutes = require('./routes/community.routes');
 const commentRoutes = require('./routes/comment.routes');
 const contactRoutes = require('./routes/contact.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Passport config
-require('./utils/passport.google');
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  require('./utils/passport.google');
+}
 
 // Initialize app
 const app = express();
@@ -60,6 +63,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ✅ Global error handler
 app.use((err, req, res, next) => {
