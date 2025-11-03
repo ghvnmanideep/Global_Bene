@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import PostCard from './PostCard';
 import { postService } from '../services/postService';
 import { communityService } from '../services/communityService';
+import CreatePost from './CreatePost';
 
 export default function Profile() {
   const { id } = useParams(); // Get user ID from URL params
@@ -17,6 +18,9 @@ export default function Profile() {
   const [followingDetails, setFollowingDetails] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
+  const [editingPost, setEditingPost] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [totalUserPosts, setTotalUserPosts] = useState(0);
 
   useEffect(() => {
     authService
@@ -69,13 +73,42 @@ export default function Profile() {
     setIsFollowPending(false);
   };
 
+  const handleEditPost = (post) => {
+    setEditingPost(post);
+    setShowEditModal(true);
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+
+    try {
+      await postService.deletePost(postId);
+      // Refresh posts
+      const res = await postService.getAllPosts({ author: displayedId, limit: 20 });
+      setProfilePosts(res.data.posts || []);
+      setTotalUserPosts(res.data.pagination?.total || 0);
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      alert('Failed to delete post');
+    }
+  };
+
+  const handleEditPostSubmit = async () => {
+    setShowEditModal(false);
+    // Refresh posts
+    const res = await postService.getAllPosts({ author: displayedId, limit: 20 });
+    setProfilePosts(res.data.posts || []);
+    setTotalUserPosts(res.data.pagination?.total || 0);
+  };
+
   // Fetch posts for this profile on mount or id change
   useEffect(() => {
     async function fetchPosts() {
       if (!displayedId) return;
       try {
-        const res = await postService.getAllPosts({ author: displayedId });
+        const res = await postService.getAllPosts({ author: displayedId, limit: 20 });
         setProfilePosts(res.data.posts || []);
+        setTotalUserPosts(res.data.pagination?.total || 0);
       } catch {}
     }
     fetchPosts();
@@ -123,8 +156,8 @@ export default function Profile() {
   }, [isOwnProfile]);
   const followerCount = displayedUser?.followers?.length || 0;
   const followingCount = displayedUser?.following?.length || 0;
-  // For the total posts count, use the actual fetched posts length
-  const postCount = profilePosts.length;
+  // Use the total count from API instead of loaded posts length
+  const postCount = totalUserPosts;
   const followerLabel = followerCount === 1 ? 'Follower' : 'Followers';
   const followingLabel = followingCount === 1 ? 'Following' : 'Following';
 
@@ -205,25 +238,66 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Followers/Following Chips */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 mb-6 flex flex-col gap-2">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {followersDetails.length > 0 ? (
-            followersDetails.map(user => (
-              <Link to={`/profile/${user._id}`} key={user._id} className="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
-                {user.username}
-              </Link>
-            ))
-          ) : <span className="text-xs italic text-gray-400">No followers yet.</span>}
+      {/* Followers/Following Sections */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Followers Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <h3 className="font-bold mb-3 text-orange-700 flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Followers ({followerCount})
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {followersDetails.length > 0 ? (
+              followersDetails.map(user => (
+                <Link
+                  to={`/profile/${user._id}`}
+                  key={user._id}
+                  className="flex items-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
+                >
+                  <img
+                    src={user.profile?.avatarUrl || 'https://www.gravatar.com/avatar/?d=mp'}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full mr-3"
+                  />
+                  <span className="font-medium text-orange-700 dark:text-orange-300">@{user.username}</span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 italic">No followers yet.</p>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {followingDetails.length > 0 ? (
-            followingDetails.map(user => (
-              <Link to={`/profile/${user._id}`} key={user._id} className="inline-block px-3 py-1 bg-orange-50 text-orange-600 rounded-full font-semibold shadow hover:bg-orange-200 text-xs mr-2 mb-2 transition whitespace-nowrap">
-                {user.username}
-              </Link>
-            ))
-          ) : <span className="text-xs italic text-gray-400">Not following anyone yet.</span>}
+
+        {/* Following Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+          <h3 className="font-bold mb-3 text-orange-700 flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Following ({followingCount})
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {followingDetails.length > 0 ? (
+              followingDetails.map(user => (
+                <Link
+                  to={`/profile/${user._id}`}
+                  key={user._id}
+                  className="flex items-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
+                >
+                  <img
+                    src={user.profile?.avatarUrl || 'https://www.gravatar.com/avatar/?d=mp'}
+                    alt={user.username}
+                    className="w-8 h-8 rounded-full mr-3"
+                  />
+                  <span className="font-medium text-orange-700 dark:text-orange-300">@{user.username}</span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 italic">Not following anyone yet.</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -285,7 +359,25 @@ export default function Profile() {
                 {profilePosts
                   .filter(post => post.author && post.author._id === displayedId)
                   .map(post => (
-                    <PostCard key={post._id} post={post} onUpdate={() => {}} />
+                    <div key={post._id} className="relative">
+                      <PostCard post={post} onUpdate={() => {}} />
+                      {isOwnProfile && (
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <button
+                            onClick={() => handleEditPost(post)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(post._id)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   ))}
               </div>
             )}
@@ -307,6 +399,19 @@ export default function Profile() {
           </>
         )}
       </div>
+
+      {/* Edit Post Modal */}
+      {showEditModal && editingPost && (
+        <CreatePost
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingPost(null);
+          }}
+          onSuccess={handleEditPostSubmit}
+          communities={[]} // Pass empty array since editing doesn't need community selection
+          editPost={editingPost}
+        />
+      )}
     </div>
   );
 }
