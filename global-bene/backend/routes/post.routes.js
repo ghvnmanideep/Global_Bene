@@ -10,6 +10,7 @@ router.get('/:id', postController.getPostById);
 
 // Protected routes
 router.post('/', authRequired, parser.single('image'), postController.createPost);
+router.put('/:id', authRequired, parser.single('image'), postController.updatePost);
 router.post('/:id/vote', authRequired, postController.votePost);
 router.delete('/:id/vote', authRequired, postController.removeVote);
 router.post('/:id/save', authRequired, postController.toggleSavePost);

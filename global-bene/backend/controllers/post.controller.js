@@ -88,6 +88,9 @@ exports.getAllPosts = async (req, res) => {
     if (communityId) {
       query.community = communityId;
     }
+    if (req.query.author) {
+      query.author = req.query.author;
+    }
     if (category && category !== 'all') {
       query.category = category;
     }
@@ -241,6 +244,61 @@ exports.toggleSavePost = async (req, res) => {
   } catch (err) {
     console.error('Toggle save post error:', err);
     res.status(500).json({ message: 'Server error toggling save' });
+  }
+};
+
+// Update post
+exports.updatePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, type, linkUrl, tags, category } = req.body;
+    const userId = req.user.id;
+
+    const post = await Post.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    // Check if user is author or admin
+    if (post.author.toString() !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this post' });
+    }
+
+    // Validate updates
+    const normalizedType = (type || post.type).toLowerCase();
+    if (normalizedType === 'text' && (!content && !post.content) && content !== '') {
+      return res.status(400).json({ message: 'Content is required for text posts' });
+    }
+    if (normalizedType === 'image' && !req.file && !post.imageUrl) {
+      return res.status(400).json({ message: 'Image file is required for image posts' });
+    }
+
+    // Update fields
+    if (title !== undefined) post.title = title;
+    if (content !== undefined) post.content = content;
+    if (type !== undefined) post.type = normalizedType;
+    if (linkUrl !== undefined) post.linkUrl = linkUrl || '';
+    if (tags !== undefined) post.tags = tags || [];
+    if (category !== undefined) post.category = category || 'general';
+
+    // Handle image update
+    if (req.file) {
+      post.imageUrl = req.file.path;
+      post.imagePublicId = req.file.filename;
+    }
+
+    await post.save();
+
+    // Populate author and community only if present
+    await post.populate('author', 'username');
+    if (post.community) {
+      await post.populate('community', 'name displayName');
+    }
+
+    res.json({ message: 'Post updated successfully', post });
+  } catch (err) {
+    console.error('Update post error:', err);
+    res.status(500).json({ message: 'Server error updating post' });
   }
 };
 

@@ -28,6 +28,12 @@ export const postService = {
     }
     return api.post('/posts', data);
   },
+  updatePost: (id, data) => {
+    if (data instanceof FormData) {
+      return api.put(`/posts/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    }
+    return api.put(`/posts/${id}`, data);
+  },
   votePost: (id, voteType) => api.post(`/posts/${id}/vote`, { voteType }),
   removeVote: (id) => api.delete(`/posts/${id}/vote`),
   toggleSavePost: (id) => api.post(`/posts/${id}/save`),

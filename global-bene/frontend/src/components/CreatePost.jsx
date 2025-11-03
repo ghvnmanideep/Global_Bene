@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { postService } from '../services/postService';
 
-export default function CreatePost({ onClose, onSuccess, communities }) {
+export default function CreatePost({ onClose, onSuccess, communities, editPost }) {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -12,6 +12,22 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isEditing = !!editPost;
+
+  // Initialize form data for editing
+  useEffect(() => {
+    if (editPost) {
+      setFormData({
+        title: editPost.title || '',
+        content: editPost.content || '',
+        communityId: editPost.community?._id || '',
+        type: editPost.type || 'text',
+        linkUrl: editPost.linkUrl || '',
+      });
+      setPostType(editPost.community ? 'community' : 'user');
+      setCategory(editPost.category || 'general');
+    }
+  }, [editPost]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,38 +39,67 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
     setError('');
 
     try {
-      if (formData.type === 'image') {
-        const fd = new FormData();
-        fd.append('title', formData.title);
-        if (postType === 'community' && formData.communityId) {
-          fd.append('communityId', formData.communityId);
+      if (isEditing) {
+        // Update existing post
+        if (formData.type === 'image') {
+          const fd = new FormData();
+          fd.append('title', formData.title);
+          fd.append('type', formData.type);
+          fd.append('content', formData.content || '');
+          fd.append('category', category);
+          if (imageFile) fd.append('image', imageFile);
+          await postService.updatePost(editPost._id, fd);
+        } else if (formData.type === 'link') {
+          await postService.updatePost(editPost._id, {
+            title: formData.title,
+            type: formData.type,
+            linkUrl: formData.linkUrl,
+            content: '',
+            category,
+          });
+        } else {
+          await postService.updatePost(editPost._id, {
+            title: formData.title,
+            type: 'text',
+            content: formData.content,
+            category,
+          });
         }
-        fd.append('type', formData.type);
-        fd.append('content', ''); // Always send content for backend validation
-        fd.append('category', category);
-        if (imageFile) fd.append('image', imageFile);
-        await postService.createPost(fd);
-      } else if (formData.type === 'link') {
-        await postService.createPost({
-          title: formData.title,
-          communityId: postType === 'community' ? formData.communityId : undefined,
-          type: formData.type,
-          linkUrl: formData.linkUrl,
-          content: '', // Always send content
-          category,
-        });
       } else {
-        await postService.createPost({
-          title: formData.title,
-          communityId: postType === 'community' ? formData.communityId : undefined,
-          type: 'text',
-          content: formData.content,
-          category,
-        });
+        // Create new post
+        if (formData.type === 'image') {
+          const fd = new FormData();
+          fd.append('title', formData.title);
+          if (postType === 'community' && formData.communityId) {
+            fd.append('communityId', formData.communityId);
+          }
+          fd.append('type', formData.type);
+          fd.append('content', ''); // Always send content for backend validation
+          fd.append('category', category);
+          if (imageFile) fd.append('image', imageFile);
+          await postService.createPost(fd);
+        } else if (formData.type === 'link') {
+          await postService.createPost({
+            title: formData.title,
+            communityId: postType === 'community' ? formData.communityId : undefined,
+            type: formData.type,
+            linkUrl: formData.linkUrl,
+            content: '', // Always send content
+            category,
+          });
+        } else {
+          await postService.createPost({
+            title: formData.title,
+            communityId: postType === 'community' ? formData.communityId : undefined,
+            type: 'text',
+            content: formData.content,
+            category,
+          });
+        }
       }
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Error creating post');
+      setError(err.response?.data?.message || err.message || `Error ${isEditing ? 'updating' : 'creating'} post`);
     } finally {
       setLoading(false);
     }
@@ -81,7 +126,7 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
       <div className="bg-slate-50 dark:bg-slate-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-300 dark:border-gray-700 shadow-xl">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Post</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isEditing ? 'Edit Post' : 'Create Post'}</h2>
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -97,11 +142,13 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Post type switch */}
-            <div className="flex items-center gap-8 mb-4">
-                <label><input type="radio" name="postType" value="community" checked={postType === 'community'} onChange={() => setPostType('community')} /> Community Post</label>
-                <label><input type="radio" name="postType" value="user" checked={postType === 'user'} onChange={() => setPostType('user')} /> User Post</label>
-            </div>
+            {/* Post type switch - only show for new posts */}
+            {!isEditing && (
+              <div className="flex items-center gap-8 mb-4">
+                  <label><input type="radio" name="postType" value="community" checked={postType === 'community'} onChange={() => setPostType('community')} /> Community Post</label>
+                  <label><input type="radio" name="postType" value="user" checked={postType === 'user'} onChange={() => setPostType('user')} /> User Post</label>
+              </div>
+            )}
 
             {/* Content type tabs */}
             <div className="flex items-center gap-2 mb-2">
@@ -110,8 +157,8 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
               <button type="button" onClick={() => setFormData({ ...formData, type: 'link' })} className={`px-3 py-1.5 rounded ${formData.type === 'link' ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'}`}>Link</button>
             </div>
 
-            {/* Community select - only if community post */}
-            {postType === 'community' && (
+            {/* Community select - only if community post and not editing */}
+            {postType === 'community' && !isEditing && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Community *
@@ -202,13 +249,13 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
             {formData.type === 'image' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Image *
+                  Image {isEditing ? '(leave empty to keep current)' : '*'}
                 </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  required
+                  required={!isEditing}
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
@@ -227,7 +274,7 @@ export default function CreatePost({ onClose, onSuccess, communities }) {
                 disabled={loading}
                 className="px-4 py-2 bg-orange-600 dark:bg-orange-400 text-white dark:text-slate-900 rounded-lg font-semibold disabled:opacity-50 shadow hover:bg-orange-700 dark:hover:bg-orange-300 transition"
               >
-                {loading ? 'Posting...' : 'Post'}
+                {loading ? (isEditing ? 'Updating...' : 'Posting...') : (isEditing ? 'Update' : 'Post')}
               </button>
             </div>
           </form>
