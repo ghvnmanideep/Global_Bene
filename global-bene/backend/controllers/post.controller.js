@@ -1,6 +1,7 @@
 const Post = require('../models/post');
 const Community = require('../models/community');
 const Comment = require('../models/comment');
+const { createNotification } = require('./notification.controller');
 
 // Create a new post
 exports.createPost = async (req, res) => {
@@ -27,11 +28,21 @@ exports.createPost = async (req, res) => {
       if (!community) {
         return res.status(404).json({ message: 'Community not found' });
       }
-      // Check if user is a member or creator
+      // Check permissions based on community type
       const isMember = community.members.includes(userId);
       const isCreator = community.creator.toString() === userId;
-      if (!isMember && !isCreator) {
-        return res.status(403).json({ message: 'You must be a member to post in this community' });
+      const isAdmin = req.user.role === 'admin';
+
+      if (community.isPrivate) {
+        // Private community: only admins can post
+        if (!isAdmin) {
+          return res.status(403).json({ message: 'Only admins can post in private communities' });
+        }
+      } else {
+        // Public community: members can post
+        if (!isMember && !isCreator) {
+          return res.status(403).json({ message: 'You must be a member to post in this community' });
+        }
       }
     }
 
@@ -172,6 +183,12 @@ exports.votePost = async (req, res) => {
     post.votes.push({ userId, voteType });
 
     await post.save();
+
+    // Create notification for post author if voter is not the author
+    if (post.author.toString() !== userId) {
+      const message = `${req.user.username} ${voteType}d your post "${post.title}"`;
+      await createNotification(post.author, voteType, message, userId, id);
+    }
 
     res.json({ message: 'Vote recorded', post });
   } catch (err) {

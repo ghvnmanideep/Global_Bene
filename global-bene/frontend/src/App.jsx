@@ -22,10 +22,14 @@ import ContactUs from './components/ContactUs';
 import GLogin from './components/GLogin';
 import { communityService } from './services/communityService';
 
+import Notifications from './components/Notifications';
+import Header from './components/Header';
+
 export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
   const [communities, setCommunities] = useState([]);
-  const [sidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -44,15 +48,49 @@ export default function App() {
     fetchCommunities();
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial check
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const toggleTheme = () => setDarkMode((prev) => !prev);
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   return (
     <BrowserRouter>
       <div className={`min-h-screen font-sans transition-colors duration-500 ${darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'} flex`}>
+        {/* Mobile Overlay */}
+        {isMobile && sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={toggleSidebar}
+          ></div>
+        )}
+
         {/* Left Sidebar */}
-        <aside className={`min-h-screen bg-white/90 dark:bg-gray-900/90 shadow-md flex flex-col transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0'}`}>
+        <aside className={`min-h-screen bg-white/90 dark:bg-gray-900/90 shadow-md flex flex-col transition-all duration-300 z-50 ${sidebarOpen ? 'w-64' : 'w-0'} ${isMobile ? 'fixed' : 'relative'}`}>
           <div className="px-8 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <Link to="/" className={`text-3xl font-bold text-blue-600 dark:text-blue-400 hover:underline ${sidebarOpen ? '' : 'hidden'}`}>Global Bene</Link>
+            {isMobile && (
+              <button
+                onClick={toggleSidebar}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                ✕
+              </button>
+            )}
           </div>
           <nav className={`flex-1 py-4 space-y-4 ${sidebarOpen ? 'px-8' : 'px-4'}`}>
             {/* Determine login state */}
@@ -76,15 +114,16 @@ export default function App() {
                         )}
                       </div>
                     </Link>
-                    <Link to="/" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Home</Link>
-                    <Link to="/communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Communities</Link>
-                    <Link to="/my-communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Your Communities</Link>
-                    <Link to="/create-post" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Create Post</Link>
-                    <Link to="/create-community" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Create Community</Link>
-                    <Link to="/dashboard" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Dashboard</Link>
-                    <Link to="/profile" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>{sidebarOpen ? (user?.username || 'Profile') : '👤'}</Link>
-                    <Link to="/search" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Search</Link>
-                    <Link to="/contact" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Contact Us</Link>
+                    <Link to="/" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Home</Link>
+                    <Link to="/communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Communities</Link>
+                    <Link to="/my-communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Your Communities</Link>
+                    <Link to="/create-post" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Create Post</Link>
+                    <Link to="/create-community" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Create Community</Link>
+                    <Link to="/dashboard" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Dashboard</Link>
+                    <Link to="/notifications" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Notifications</Link>
+                    <Link to="/profile" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>{sidebarOpen ? (user?.username || 'Profile') : '👤'}</Link>
+                    <Link to="/search" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Search</Link>
+                    <Link to="/contact" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Contact Us</Link>
                     <button
                       onClick={() => {
                         sessionStorage.clear();
@@ -100,11 +139,11 @@ export default function App() {
               } else {
                 return (
                   <>
-                    <Link to="/" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Home</Link>
-                    <Link to="/communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Communities</Link>
-                    <Link to="/contact" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Contact Us</Link>
-                    <Link to="/login" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Login</Link>
-                    <Link to="/register" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`}>Register</Link>
+                    <Link to="/" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Home</Link>
+                    <Link to="/communities" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Communities</Link>
+                    <Link to="/contact" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Contact Us</Link>
+                    <Link to="/login" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Login</Link>
+                    <Link to="/register" className={`block hover:underline ${sidebarOpen ? '' : 'text-center'}`} onClick={isMobile ? toggleSidebar : undefined}>Register</Link>
                     <button onClick={toggleTheme} className={`w-full px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white ${sidebarOpen ? '' : 'px-2 text-sm'}`} title="Toggle theme">
                       {sidebarOpen ? (darkMode ? '🌞 Light' : '🌙 Dark') : (darkMode ? '🌞' : '🌙')}
                     </button>
@@ -117,6 +156,19 @@ export default function App() {
 
         {/* Main Content */}
         <main className="flex-1">
+          {/* Mobile Header */}
+          {isMobile && (
+            <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between md:hidden">
+              <button
+                onClick={toggleSidebar}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              >
+                ☰
+              </button>
+              <Link to="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">Global Bene</Link>
+              <div className="w-6"></div> {/* Spacer for centering */}
+            </header>
+          )}
           <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home darkMode={darkMode} />} />
@@ -136,6 +188,7 @@ export default function App() {
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:id" element={<Profile />} />
             <Route path="/edit-profile" element={<EditProfile />} />

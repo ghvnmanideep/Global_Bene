@@ -1,5 +1,6 @@
 const Comment = require('../models/comment');
 const Post = require('../models/post');
+const { createNotification } = require('./notification.controller');
 
 // Create a comment
 exports.createComment = async (req, res) => {
@@ -41,6 +42,15 @@ exports.createComment = async (req, res) => {
     }
 
     await comment.populate('author', 'username profile');
+
+    // Create notification for post author if commenter is not the author
+    if (post.author.toString() !== userId) {
+      const type = parentCommentId ? 'reply' : 'comment';
+      const message = parentCommentId
+        ? `${comment.author.username} replied to your comment`
+        : `${comment.author.username} commented on your post "${post.title}"`;
+      await createNotification(post.author, type, message, userId, postId, comment._id);
+    }
 
     res.status(201).json({ message: 'Comment created successfully', comment });
   } catch (err) {
