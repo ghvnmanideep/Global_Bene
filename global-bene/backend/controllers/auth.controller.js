@@ -229,50 +229,52 @@ exports.login = async (req, res) => {
 
     const token = createAccessToken(user);
 
-    // Send welcome email on successful login
-    const welcomeHtml = `
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
-        <tr>
-          <td align="center">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
-              <tr>
-                <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
-                  <table width="100%">
-                    <tr>
-                      <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
-                        Global Bene
-                      </td>
-                      <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
-                        Welcome Back
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
-                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
-                  <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
-                    You have successfully logged in to Global Bene. Enjoy exploring communities and connecting with others.
-                  </p>
-                  <div style="text-align:center;margin:26px 0 8px;">
-                    <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
-                      Go to Dashboard
-                    </a>
-                  </div>
-                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't log in, please secure your account immediately.</p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
-                  You received this email because you logged in to Global Bene.
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>`;
-    await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+    // Send welcome email on successful login only for non-admin users
+    if (user.role !== 'admin') {
+      const welcomeHtml = `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
+                <tr>
+                  <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
+                    <table width="100%">
+                      <tr>
+                        <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
+                          Global Bene
+                        </td>
+                        <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
+                          Welcome Back
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
+                    <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
+                    <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
+                      You have successfully logged in to Global Bene. Enjoy exploring communities and connecting with others.
+                    </p>
+                    <div style="text-align:center;margin:26px 0 8px;">
+                      <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
+                        Go to Dashboard
+                      </a>
+                    </div>
+                    <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't log in, please secure your account immediately.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
+                    You received this email because you logged in to Global Bene.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>`;
+      await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+    }
 
     res.json({
       accessToken: token,
@@ -488,50 +490,52 @@ exports.googleAuth = async (req, res) => {
     // Generate JWT
     const accessToken = createAccessToken(user);
 
-    // Send welcome email on successful Google sign-in
-    const welcomeHtml = `
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
-        <tr>
-          <td align="center">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
-              <tr>
-                <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
-                  <table width="100%">
-                    <tr>
-                      <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
-                        Global Bene
-                      </td>
-                      <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
-                        Welcome Back
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
-                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
-                  <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
-                    You have successfully signed in to Global Bene with Google. Enjoy exploring communities and connecting with others.
-                  </p>
-                  <div style="text-align:center;margin:26px 0 8px;">
-                    <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
-                      Go to Dashboard
-                    </a>
-                  </div>
-                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't sign in, please secure your account immediately.</p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
-                  You received this email because you signed in to Global Bene with Google.
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>`;
-    await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+    // Send welcome email on successful Google sign-in only for non-admin users
+    if (user.role !== 'admin') {
+      const welcomeHtml = `
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background:#0b1220;border-radius:12px;border:1px solid #1f2937;box-shadow:0 10px 25px rgba(0,0,0,.25);">
+                <tr>
+                  <td style="padding:28px 32px;border-bottom:1px solid #1f2937;">
+                    <table width="100%">
+                      <tr>
+                        <td align="left" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;font-size:18px;font-weight:700;letter-spacing:.2px;">
+                          Global Bene
+                        </td>
+                        <td align="right" style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#9ca3af;font-size:12px;">
+                          Welcome Back
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
+                    <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Welcome back, ${user.username}!</h1>
+                    <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
+                      You have successfully signed in to Global Bene with Google. Enjoy exploring communities and connecting with others.
+                    </p>
+                    <div style="text-align:center;margin:26px 0 8px;">
+                      <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
+                        Go to Dashboard
+                      </a>
+                    </div>
+                    <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">If you didn't sign in, please secure your account immediately.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:16px 32px;border-top:1px solid #1f2937;color:#64748b;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;">
+                    You received this email because you signed in to Global Bene with Google.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>`;
+      await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+    }
 
     res.status(200).json({
       success: true,
