@@ -103,6 +103,13 @@ export default function Login() {
           </Link>
         </p>
 
+        <p className="mt-2 text-center text-sm text-gray-700 dark:text-gray-300">
+          Forgot your password?{" "}
+          <Link to="/forgot" className="text-blue-600 hover:underline">
+            Reset it here
+          </Link>
+        </p>
+
         <div className="mt-6 flex justify-center">
           <GoogleOAuthProvider clientId={CLIENT_ID}>
             <GLogin />
