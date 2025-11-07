@@ -15,6 +15,9 @@ const commentSchema = new mongoose.Schema(
     upvotes: { type: Number, default: 0 },
     downvotes: { type: Number, default: 0 },
     isEdited: { type: Boolean, default: false },
+    spamStatus: { type: String, enum: ['not_spam', 'might_be_spam', 'spam'], default: 'not_spam' },
+    spamConfidence: { type: Number, default: 0 },
+    spamReason: { type: String, default: '' },
   },
   { timestamps: true }
 );

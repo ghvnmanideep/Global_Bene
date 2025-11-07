@@ -17,6 +17,7 @@ export default function Profile() {
   const [followersDetails, setFollowersDetails] = useState([]);
   const [followingDetails, setFollowingDetails] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
+  const [userComments, setUserComments] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [editingPost, setEditingPost] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -93,6 +94,20 @@ export default function Profile() {
     }
   };
 
+  const handleDeleteComment = async (commentId) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+
+    try {
+      await commentService.deleteComment(commentId);
+      // Refresh comments
+      const res = await authService.getUserComments(displayedId);
+      setUserComments(res.data.comments || []);
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      alert('Failed to delete comment');
+    }
+  };
+
   const handleEditPostSubmit = async () => {
     setShowEditModal(false);
     // Refresh posts
@@ -141,10 +156,10 @@ export default function Profile() {
     fetchUserDetails();
   }, [displayedUser]);
 
-  // Fetch saved posts if it's the user's own profile
+  // Fetch saved posts and user comments if it's the user's own profile
   useEffect(() => {
     async function fetchSavedPosts() {
-      if (!isOwnProfile) return;
+      if (!isOwnProfile || !user) return;
       try {
         const res = await communityService.getUserSavedPosts();
         setSavedPosts(res.data.posts || []);
@@ -152,8 +167,20 @@ export default function Profile() {
         console.error('Error fetching saved posts:', err);
       }
     }
+
+    async function fetchUserComments() {
+      if (!isOwnProfile || !user || !displayedId) return;
+      try {
+        const res = await authService.getUserComments(displayedId);
+        setUserComments(res.data.comments || []);
+      } catch (err) {
+        console.error('Error fetching user comments:', err);
+      }
+    }
+
     fetchSavedPosts();
-  }, [isOwnProfile]);
+    fetchUserComments();
+  }, [isOwnProfile, displayedId, user]);
   const followerCount = displayedUser?.followers?.length || 0;
   const followingCount = displayedUser?.following?.length || 0;
   // Use the total count from API instead of loaded posts length
@@ -220,6 +247,16 @@ export default function Profile() {
             <div className="text-xs uppercase tracking-widest text-gray-700">{followingLabel}</div>
           </div>
         </div>
+        {/* Spam Status Transparency */}
+        {isOwnProfile && displayedUser.spamPostCount > 0 && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-center">
+            <div className="text-red-700 font-semibold">Spam Activity Warning</div>
+            <div className="text-sm text-red-600 mt-1">
+              You have {displayedUser.spamPostCount} spam post{displayedUser.spamPostCount !== 1 ? 's' : ''}.
+              {displayedUser.spamPostCount >= 5 && ' Your account is banned due to excessive spam.'}
+            </div>
+          </div>
+        )}
         <div className="flex gap-2 justify-center mt-4">
           {isOwnProfile && (
             <Link
@@ -327,7 +364,7 @@ export default function Profile() {
         </p>
       )}
 
-      {/* Tabs for Posts and Saved Posts */}
+      {/* Tabs for Posts, Saved Posts, and Comments */}
       {isOwnProfile && (
         <div className="mt-12 mb-6">
           <div className="flex border-b border-gray-200">
@@ -342,6 +379,12 @@ export default function Profile() {
               className={`px-4 py-2 font-semibold ${activeTab === 'saved' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-600 hover:text-orange-600'}`}
             >
               Saved Posts
+            </button>
+            <button
+              onClick={() => setActiveTab('comments')}
+              className={`px-4 py-2 font-semibold ${activeTab === 'comments' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-600 hover:text-orange-600'}`}
+            >
+              Comments
             </button>
           </div>
         </div>
@@ -393,6 +436,45 @@ export default function Profile() {
               <div className="space-y-4">
                 {savedPosts.map(post => (
                   <PostCard key={post._id} post={post} onUpdate={() => {}} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'comments' && isOwnProfile && (
+          <>
+            <h2 className="text-2xl font-bold mb-4 text-orange-800">My Comments</h2>
+            {userComments.length === 0 ? (
+              <p className="p-8 text-center text-gray-500">No comments yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {userComments.map(comment => (
+                  <div key={comment._id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-2">
+                          <Link to={`/post/${comment.post._id}`} className="text-lg font-semibold text-orange-600 hover:text-orange-800 underline">
+                            On: {comment.post.title}
+                          </Link>
+                          <span className="ml-2 text-sm text-gray-500">
+                            {new Date(comment.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 dark:text-gray-300 mb-3">{comment.content}</p>
+                        <div className="text-sm text-gray-500">
+                          <span>👍 {comment.upvotes || 0} upvotes</span>
+                          <span className="ml-4">👎 {comment.downvotes || 0} downvotes</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteComment(comment._id)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm ml-4"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

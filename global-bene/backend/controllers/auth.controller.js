@@ -204,7 +204,7 @@ exports.login = async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const loginIdentifier = username || email;
-    console.log('Login attempt:', { loginIdentifier, password: !!password });
+    // console.log('Login attempt:', { loginIdentifier, password: !!password });
 
     if (!loginIdentifier || !password)
       return res.status(400).json({ message: 'Username/email and password are required' });
@@ -223,7 +223,7 @@ exports.login = async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    console.log('Password match:', isMatch);
+    // console.log('Password match:', isMatch);
     if (!isMatch)
       return res.status(400).json({ message: 'Invalid username or password' });
 
@@ -388,6 +388,80 @@ exports.getMe = async (req, res) => {
     res.json(user);
   } catch (err) {
     console.error('Get profile error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+// --------- FOLLOW USER ---------
+exports.followUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.id;
+
+    if (userId === currentUserId) {
+      return res.status(400).json({ message: 'Cannot follow yourself' });
+    }
+
+    const userToFollow = await User.findById(userId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToFollow || !currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (currentUser.following.includes(userId)) {
+      return res.status(400).json({ message: 'Already following this user' });
+    }
+
+    currentUser.following.push(userId);
+    userToFollow.followers.push(currentUserId);
+
+    await currentUser.save();
+    await userToFollow.save();
+
+    res.json({ message: 'User followed successfully' });
+  } catch (err) {
+    console.error('Follow user error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// --------- UNFOLLOW USER ---------
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.id;
+
+    const userToUnfollow = await User.findById(userId);
+    const currentUser = await User.findById(currentUserId);
+
+    if (!userToUnfollow || !currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    currentUser.following = currentUser.following.filter(id => id.toString() !== userId);
+    userToUnfollow.followers = userToUnfollow.followers.filter(id => id.toString() !== currentUserId);
+
+    await currentUser.save();
+    await userToUnfollow.save();
+
+    res.json({ message: 'User unfollowed successfully' });
+  } catch (err) {
+    console.error('Unfollow user error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// --------- GET USER BY ID ---------
+exports.getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('-passwordHash -resetToken -emailToken');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    console.error('Get user by ID error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

@@ -18,6 +18,26 @@ const createNotification = async (userId, type, message, relatedUser = null, rel
   }
 };
 
+// Create spam notification
+const createSpamNotification = async (userId, postId, postTitle, reason, confidence) => {
+  try {
+    const message = `Your post "${postTitle}" has been flagged as spam (confidence: ${(confidence * 100).toFixed(1)}%). Reason: ${reason}`;
+    await createNotification(userId, 'spam', message, null, postId);
+  } catch (err) {
+    console.error('Error creating spam notification:', err);
+  }
+};
+
+// Create ban notification
+const createBanNotification = async (userId, reason) => {
+  try {
+    const message = `Your account has been banned. Reason: ${reason}`;
+    await createNotification(userId, 'ban', message);
+  } catch (err) {
+    console.error('Error creating ban notification:', err);
+  }
+};
+
 // Get notifications for the current user
 exports.getNotifications = async (req, res) => {
   try {

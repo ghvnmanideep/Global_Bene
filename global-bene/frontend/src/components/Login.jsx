@@ -24,6 +24,10 @@ export default function Login() {
         "user",
         JSON.stringify({ _id, username: userName, role, accessToken })
       );
+
+      // Dispatch custom event to update sidebar immediately
+      window.dispatchEvent(new Event('authChange'));
+
       navigate("/dashboard");
     } catch (err) {
       alert(err.response?.data?.message || "Login failed");

@@ -24,6 +24,7 @@ import AdminUserManagement from './components/AdminUserManagement';
 import AdminPostManagement from './components/AdminPostManagement';
 import AdminNotifications from './components/AdminNotifications';
 import AdminSpamReports from './components/AdminSpamReports';
+import AdminSpamManagement from './components/AdminSpamManagement';
 import AdminDashboard from './components/AdminDashboard';
 import { communityService } from './services/communityService';
 
@@ -35,6 +36,11 @@ export default function App() {
   const [communities, setCommunities] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [user, setUser] = useState(() => {
+    const storedUser = sessionStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!sessionStorage.getItem('accessToken'));
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -51,6 +57,33 @@ export default function App() {
       }
     };
     fetchCommunities();
+  }, []);
+
+  // Listen for login/logout events to update sidebar
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedUser = sessionStorage.getItem('user');
+      const token = sessionStorage.getItem('accessToken');
+      setUser(storedUser ? JSON.parse(storedUser) : null);
+      setIsLoggedIn(!!token);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Custom event for immediate updates
+    const handleAuthChange = () => {
+      const storedUser = sessionStorage.getItem('user');
+      const token = sessionStorage.getItem('accessToken');
+      setUser(storedUser ? JSON.parse(storedUser) : null);
+      setIsLoggedIn(!!token);
+    };
+
+    window.addEventListener('authChange', handleAuthChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleAuthChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -100,8 +133,6 @@ export default function App() {
           <nav className={`flex-1 py-4 space-y-4 ${sidebarOpen ? 'px-8' : 'px-4'}`}>
             {/* Determine login state */}
             {(() => {
-              const isLoggedIn = !!sessionStorage.getItem('accessToken');
-              const user = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')) : null;
               if (isLoggedIn) {
                 return (
                   <>
@@ -135,6 +166,8 @@ export default function App() {
                     <button
                       onClick={() => {
                         sessionStorage.clear();
+                        // Dispatch custom event to update sidebar immediately
+                        window.dispatchEvent(new Event('authChange'));
                         window.location.href = '/home';
                       }}
                       className={`w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded shadow font-semibold ${sidebarOpen ? '' : 'px-2 text-sm'}`}
@@ -201,6 +234,7 @@ export default function App() {
             <Route path="/admin/posts" element={<AdminPostManagement />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/admin/spam" element={<AdminSpamReports />} />
+            <Route path="/admin/spam-management" element={<AdminSpamManagement />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:id" element={<Profile />} />

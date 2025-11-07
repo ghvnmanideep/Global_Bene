@@ -66,6 +66,18 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Banned Users</h3>
+          <p className="text-3xl font-bold text-red-500">{stats?.bannedUsers || 0}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Auto-Deleted Spam Posts</h3>
+          <p className="text-3xl font-bold text-yellow-500">{stats?.totalSpamPosts || 0}</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Admin Users</h3>
@@ -109,6 +121,12 @@ const AdminDashboard = () => {
             className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             View Reported Posts
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/spam-management'}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Spam Management
           </button>
         </div>
       </div>

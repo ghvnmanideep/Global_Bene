@@ -1,7 +1,10 @@
 const Post = require('../models/post');
 const Community = require('../models/community');
 const Comment = require('../models/comment');
+const SpamPost = require('../models/spamPost');
+const User = require('../models/user');
 const { createNotification } = require('./notification.controller');
+const { checkSpam } = require('../utils/spamDetection');
 
 // Create a new post
 exports.createPost = async (req, res) => {
@@ -46,6 +49,7 @@ exports.createPost = async (req, res) => {
       }
     }
 
+    // Create and save the post first
     const post = new Post({
       title,
       content,
@@ -57,24 +61,102 @@ exports.createPost = async (req, res) => {
       imagePublicId: req.file?.filename,
       tags: tags || [],
       category: category || 'general',
+      spamStatus: 'not_spam', // Default to not spam initially
+      spamConfidence: 0,
+      spamReason: '',
     });
 
     await post.save();
+
     // Add post to community (if applicable)
     if (community) {
       community.posts.push(post._id);
       community.postCount = community.posts.length;
       await community.save();
     }
+
     // Populate author and community only if present
     await post.populate('author', 'username');
     if (community) {
       await post.populate('community', 'name displayName');
     }
+
+    // Start async spam check after post creation
+    processSpamCheck(post._id, title, content, tags);
+
     res.status(201).json({ success: true, message: 'Post created successfully', data: { post } });
   } catch (err) {
     console.error('Create post error:', err);
     res.status(500).json({ success: false, message: err?.message || 'Server error creating post' });
+  }
+};
+
+// Async function to check spam after post creation
+const processSpamCheck = async (postId, title, content, tags) => {
+  try {
+    const textToCheck = title + ' ' + (content || '') + ' ' + (tags ? tags.join(' ') : '');
+    console.log('Async spam check for post:', postId, 'text:', textToCheck.substring(0, 100) + '...');
+
+    const spamResult = await checkSpam(textToCheck);
+    console.log('Async spam check result:', spamResult);
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      console.error('Post not found for spam check:', postId);
+      return;
+    }
+
+    // Update post with spam results
+    post.spamStatus = spamResult.spamStatus;
+    post.spamConfidence = spamResult.confidence;
+    post.spamReason = spamResult.reason;
+    await post.save();
+
+    // If spam detected, handle spam actions
+    if (spamResult.isSpam) {
+      console.log('Spam detected asynchronously for post:', postId);
+
+      // Update user's spam post count
+      const user = await User.findById(post.author);
+      if (user) {
+        user.spamPostCount += 1;
+        await user.save();
+
+        // Send in-app notification
+        const { createSpamNotification } = require('./notification.controller');
+        await createSpamNotification(post.author, postId, title, spamResult.reason, spamResult.confidence);
+
+        // Send email notification
+        try {
+          const { sendSpamNotificationEmail } = require('../utils/email.util');
+          await sendSpamNotificationEmail(user.email, user.username, title, spamResult.reason, spamResult.confidence);
+        } catch (emailErr) {
+          console.error('Failed to send spam email notification:', emailErr);
+        }
+
+        // Check if user should be banned (>5 spam posts)
+        if (user.spamPostCount >= 5) {
+          user.isBanned = true;
+          user.bannedReason = 'Account banned due to multiple spam posts and comments';
+          user.bannedAt = new Date();
+          await user.save();
+
+          // Notify user about ban
+          const { createBanNotification } = require('./notification.controller');
+          await createBanNotification(post.author, user.bannedReason);
+
+          // Send ban email
+          try {
+            const { sendBanNotificationEmail } = require('../utils/email.util');
+            await sendBanNotificationEmail(user.email, user.username, user.bannedReason);
+          } catch (emailErr) {
+            console.error('Failed to send ban email notification:', emailErr);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Async spam check error for post:', postId, err);
   }
 };
 
