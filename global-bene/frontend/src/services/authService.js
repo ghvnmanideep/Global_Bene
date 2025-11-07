@@ -54,6 +54,7 @@ export const authService = {
   // User utilities
   searchUsers: (query) => api.get("/users/search", { params: { q: query } }),
   getUserById: (id) => api.get(`/users/${id}`),
+  getUserComments: (userId) => api.get(`/users/${userId}/comments`),
   // Admin services
   admin: {
     // User management
@@ -75,6 +76,10 @@ export const authService = {
     // Spam management
     reportPost: (postId, reason) => api.post(`/admin/posts/${postId}/report`, { reason }),
     getReportedPosts: (params) => api.get("/admin/posts/reported", { params }),
+    getSpamPosts: (params) => api.get("/admin/spam-posts", { params }),
+    restoreSpamPost: (id) => api.put(`/admin/spam-posts/${id}/restore`),
+    getUserSpamPosts: (userId) => api.get(`/admin/users/${userId}/spam-posts`),
+    toggleUserBan: (userId, data) => api.put(`/admin/users/${userId}/ban`, data),
   },
 };
 

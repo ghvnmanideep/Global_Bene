@@ -39,6 +39,7 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
     setError('');
 
     try {
+      let response;
       if (isEditing) {
         // Update existing post
         if (formData.type === 'image') {
@@ -48,9 +49,9 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
           fd.append('content', formData.content || '');
           fd.append('category', category);
           if (imageFile) fd.append('image', imageFile);
-          await postService.updatePost(editPost._id, fd);
+          response = await postService.updatePost(editPost._id, fd);
         } else if (formData.type === 'link') {
-          await postService.updatePost(editPost._id, {
+          response = await postService.updatePost(editPost._id, {
             title: formData.title,
             type: formData.type,
             linkUrl: formData.linkUrl,
@@ -58,7 +59,7 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
             category,
           });
         } else {
-          await postService.updatePost(editPost._id, {
+          response = await postService.updatePost(editPost._id, {
             title: formData.title,
             type: 'text',
             content: formData.content,
@@ -77,9 +78,9 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
           fd.append('content', ''); // Always send content for backend validation
           fd.append('category', category);
           if (imageFile) fd.append('image', imageFile);
-          await postService.createPost(fd);
+          response = await postService.createPost(fd);
         } else if (formData.type === 'link') {
-          await postService.createPost({
+          response = await postService.createPost({
             title: formData.title,
             communityId: postType === 'community' ? formData.communityId : undefined,
             type: formData.type,
@@ -88,7 +89,7 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
             category,
           });
         } else {
-          await postService.createPost({
+          response = await postService.createPost({
             title: formData.title,
             communityId: postType === 'community' ? formData.communityId : undefined,
             type: 'text',
@@ -96,10 +97,32 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
             category,
           });
         }
+
+        // Check for spam warning that requires user confirmation
+        if (response.data?.requiresConfirmation && response.data?.spamWarning) {
+          const confirmPost = window.confirm(
+            `This post might be considered spam and may be flagged. Do you want to proceed? Proceeding may cause restrictions or admin review.\n\nReason: ${response.data.spamReason}\nConfidence: ${(response.data.spamConfidence * 100).toFixed(1)}%`
+          );
+          if (!confirmPost) {
+            setLoading(false);
+            return;
+          }
+          // If user confirms, we need to proceed with posting (this would require a separate endpoint or flag)
+          // For now, we'll show a message that the post needs manual review
+          alert('Your post has been flagged for review. It will be visible after admin approval.');
+          setLoading(false);
+          return;
+        }
       }
+
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || `Error ${isEditing ? 'updating' : 'creating'} post`);
+      const errorData = err.response?.data;
+      if (errorData?.spamDetected) {
+        setError(`Spam detected: ${errorData.spamReason}. Your post cannot be created.`);
+      } else {
+        setError(errorData?.message || err.message || `Error ${isEditing ? 'updating' : 'creating'} post`);
+      }
     } finally {
       setLoading(false);
     }

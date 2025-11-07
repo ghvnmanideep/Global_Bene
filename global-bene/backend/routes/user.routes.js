@@ -11,4 +11,5 @@ router.post("/:id/follow", authRequired, userController.followUser);
 router.post("/:id/unfollow", authRequired, userController.unfollowUser);
 router.get('/search', userController.searchUsers);
 router.get("/:id", userController.getUserById);
+router.get("/:id/comments", authRequired, userController.getUserComments);
 module.exports = router;

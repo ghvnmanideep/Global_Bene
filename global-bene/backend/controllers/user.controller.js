@@ -356,3 +356,21 @@ exports.getUserById = async (req, res) => {
     res.status(500).json({ message: "Server error fetching user" });
   }
 };
+
+// =================== GET USER COMMENTS ===================
+exports.getUserComments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Comment = require('../models/comment');
+
+    const comments = await Comment.find({ author: id })
+      .populate('post', 'title')
+      .sort({ createdAt: -1 })
+      .select('content createdAt upvotes downvotes post');
+
+    res.json({ comments });
+  } catch (err) {
+    console.error('Get user comments error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

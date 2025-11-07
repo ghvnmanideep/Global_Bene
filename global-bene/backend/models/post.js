@@ -31,6 +31,9 @@ const postSchema = new mongoose.Schema(
     linkUrl: String,
     tags: [String],
     category: { type: String, enum: ['general', 'tech', 'sports', 'political', 'entertainment', 'news', 'health', 'other'], default: 'general' },
+    spamStatus: { type: String, enum: ['not_spam', 'might_be_spam', 'spam'], default: 'not_spam' },
+    spamConfidence: { type: Number, default: 0 },
+    spamReason: { type: String, default: '' },
     spamReports: [{
       reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       reason: { type: String, default: 'Spam' },

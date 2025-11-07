@@ -14,10 +14,18 @@ router.post('/google', authController.googleAuth);
 router.get('/verify/:token', authController.verifyEmail);
 router.post('/forgot', authController.forgotPassword);
 router.post('/reset/:token', authController.resetPassword);
-router.post("/google", authController.googleAuth);
 
 router.get('/profile', authRequired, (req, res) => {
   res.json({ userId: req.user.id, username: req.user.username });
 });
+
+// Protected routes
+router.get('/me', authRequired, authController.getMe);
+router.put('/update', authRequired, authController.updateProfile);
+router.put('/password', authRequired, authController.changePassword);
+router.post('/:userId/follow', authRequired, authController.followUser);
+router.post('/:userId/unfollow', authRequired, authController.unfollowUser);
+router.get('/users/:id', authRequired, authController.getUserById);
+
 
 module.exports = router;

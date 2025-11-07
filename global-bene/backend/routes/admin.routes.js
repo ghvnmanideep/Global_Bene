@@ -12,6 +12,7 @@ router.use(adminRequired);
 router.get('/users', adminController.getAllUsers);
 router.delete('/users/:id', adminController.deleteUser);
 router.put('/users/:id/role', adminController.updateUserRole);
+router.put('/users/:id/ban', adminController.toggleUserBan);
 
 // =================== POST MANAGEMENT ===================
 router.get('/posts', adminController.getAllPosts);
@@ -27,5 +28,8 @@ router.get('/dashboard/stats', adminController.getDashboardStats);
 // =================== SPAM MANAGEMENT ===================
 router.post('/posts/:id/report', adminController.reportPost);
 router.get('/posts/reported', adminController.getReportedPosts);
+router.get('/spam-posts', adminController.getSpamPosts);
+router.put('/spam-posts/:id/restore', adminController.restoreSpamPost);
+router.get('/users/:userId/spam-posts', adminController.getUserSpamPosts);
 
 module.exports = router;

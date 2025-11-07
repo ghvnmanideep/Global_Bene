@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema(
     refreshTokens: [refreshTokenSchema],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    spamPostCount: { type: Number, default: 0 },
+    isBanned: { type: Boolean, default: false },
+    bannedReason: String,
+    bannedAt: Date,
     profile: {
       bio: String,
       avatarUrl: String,

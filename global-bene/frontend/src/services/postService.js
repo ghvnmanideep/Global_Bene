@@ -19,9 +19,32 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401 responses by clearing token
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('user');
+      // Optionally redirect to login
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Public API instance without auth interceptor
+const publicApi = axios.create({
+  baseURL: API,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 export const postService = {
-  getAllPosts: (params) => api.get('/posts', { params }),
-  getPostById: (id) => api.get(`/posts/${id}`),
+  getAllPosts: (params) => publicApi.get('/posts', { params }),
+  getPostById: (id) => publicApi.get(`/posts/${id}`),
   createPost: (data) => {
     if (data instanceof FormData) {
       return api.post('/posts', data, { headers: { 'Content-Type': 'multipart/form-data' } });

@@ -24,6 +24,9 @@ export default function GLogin() {
       );
       sessionStorage.setItem("accessToken", data.token);
 
+      // Dispatch custom event to update sidebar immediately
+      window.dispatchEvent(new Event('authChange'));
+
       console.log("✅ Google Login Success:", data.user);
       navigate("/dashboard");
     } catch (err) {

@@ -2,6 +2,7 @@ const User = require('../models/user');
 const Post = require('../models/post');
 const Community = require('../models/community');
 const Comment = require('../models/comment');
+const SpamPost = require('../models/spamPost');
 const { createNotification } = require('./notification.controller');
 
 // =================== ADMIN USER MANAGEMENT ===================
@@ -124,7 +125,7 @@ exports.updateUserRole = async (req, res) => {
 // Get all posts with pagination and filters
 exports.getAllPosts = async (req, res) => {
   try {
-    const { page = 1, limit = 20, search = '', author = '', community = '', type = '' } = req.query;
+    const { page = 1, limit = 20, search = '', author = '', community = '', type = '', spamStatus = '' } = req.query;
     const skip = (page - 1) * limit;
     let query = {};
 
@@ -147,6 +148,10 @@ exports.getAllPosts = async (req, res) => {
 
     if (type && type !== 'all') {
       query.type = type;
+    }
+
+    if (spamStatus && spamStatus !== 'all') {
+      query.spamStatus = spamStatus;
     }
 
     const posts = await Post.find(query)
@@ -276,6 +281,8 @@ exports.getDashboardStats = async (req, res) => {
     const recentPosts = await Post.countDocuments({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     });
+    const bannedUsers = await User.countDocuments({ isBanned: true });
+    const totalSpamPosts = await SpamPost.countDocuments();
 
     res.json({
       stats: {
@@ -286,6 +293,8 @@ exports.getDashboardStats = async (req, res) => {
         adminUsers,
         recentUsers,
         recentPosts,
+        bannedUsers,
+        totalSpamPosts,
       },
     });
   } catch (err) {
@@ -360,5 +369,171 @@ exports.getReportedPosts = async (req, res) => {
   } catch (err) {
     console.error('Get reported posts error:', err);
     res.status(500).json({ message: 'Server error fetching reported posts' });
+  }
+};
+
+// Get all spam posts
+exports.getSpamPosts = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', author = '' } = req.query;
+    const skip = (page - 1) * limit;
+    let query = {};
+
+    if (search && search.trim()) {
+      const regex = new RegExp(search, 'i');
+      query.$or = [
+        { title: { $regex: regex } },
+        { content: { $regex: regex } },
+        { tags: { $regex: regex } },
+      ];
+    }
+
+    if (author) {
+      query.author = author;
+    }
+
+    const spamPosts = await SpamPost.find(query)
+      .populate('author', 'username email spamPostCount isBanned')
+      .populate('community', 'name displayName')
+      .sort({ detectedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await SpamPost.countDocuments(query);
+
+    res.json({
+      spamPosts,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('Get spam posts error:', err);
+    res.status(500).json({ message: 'Server error fetching spam posts' });
+  }
+};
+
+// Get spam posts by user
+exports.getUserSpamPosts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const spamPosts = await SpamPost.find({ author: userId })
+      .populate('author', 'username email spamPostCount isBanned')
+      .populate('community', 'name displayName')
+      .sort({ detectedAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await SpamPost.countDocuments({ author: userId });
+
+    res.json({
+      spamPosts,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('Get user spam posts error:', err);
+    res.status(500).json({ message: 'Server error fetching user spam posts' });
+  }
+};
+
+// Restore spam post back to normal posts
+exports.restoreSpamPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const spamPost = await SpamPost.findById(id);
+    if (!spamPost) {
+      return res.status(404).json({ message: 'Spam post not found' });
+    }
+
+    // Create a new post from the spam post data
+    const restoredPost = new Post({
+      title: spamPost.title,
+      content: spamPost.content,
+      author: spamPost.author,
+      community: spamPost.community,
+      type: spamPost.type,
+      linkUrl: spamPost.linkUrl,
+      imageUrl: spamPost.imageUrl,
+      imagePublicId: spamPost.imagePublicId,
+      tags: spamPost.tags,
+      category: spamPost.category,
+      spamStatus: 'not_spam', // Mark as not spam since admin restored it
+      spamConfidence: 0,
+      spamReason: 'Restored by admin',
+    });
+
+    await restoredPost.save();
+
+    // Add post to community if applicable
+    if (spamPost.community) {
+      const community = await Community.findById(spamPost.community);
+      if (community) {
+        community.posts.push(restoredPost._id);
+        community.postCount = community.posts.length;
+        await community.save();
+      }
+    }
+
+    // Decrease user's spam count
+    const user = await User.findById(spamPost.author);
+    if (user && user.spamPostCount > 0) {
+      user.spamPostCount -= 1;
+      await user.save();
+    }
+
+    // Delete the spam post record
+    await SpamPost.findByIdAndDelete(id);
+
+    // Send notification to user
+    await createNotification(spamPost.author, 'restore', `Your post "${spamPost.title}" has been restored by an admin.`, req.user.id);
+
+    res.json({ message: 'Post restored successfully', post: restoredPost });
+  } catch (err) {
+    console.error('Restore spam post error:', err);
+    res.status(500).json({ message: 'Server error restoring post' });
+  }
+};
+
+// Ban/unban user
+exports.toggleUserBan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ban, reason } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isBanned = ban;
+    if (ban) {
+      user.bannedReason = reason || 'Banned by admin';
+      user.bannedAt = new Date();
+    } else {
+      user.bannedReason = undefined;
+      user.bannedAt = undefined;
+    }
+    await user.save();
+
+    // Send notification to user
+    const message = ban ? `Your account has been banned. Reason: ${reason || 'Banned by admin'}` : 'Your account ban has been lifted.';
+    await createNotification(user._id, ban ? 'ban' : 'unban', message, req.user.id);
+
+    res.json({ message: `User ${ban ? 'banned' : 'unbanned'} successfully`, user: { _id: user._id, username: user.username, isBanned: user.isBanned, bannedReason: user.bannedReason } });
+  } catch (err) {
+    console.error('Toggle user ban error:', err);
+    res.status(500).json({ message: 'Server error toggling user ban' });
   }
 };

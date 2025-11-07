@@ -8,12 +8,13 @@ const AdminPostManagement = () => {
   const [search, setSearch] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [spamFilter, setSpamFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
 
   useEffect(() => {
     fetchPosts();
-  }, [search, authorFilter, typeFilter, page]);
+  }, [search, authorFilter, typeFilter, spamFilter, page]);
 
   const fetchPosts = async () => {
     try {
@@ -22,6 +23,7 @@ const AdminPostManagement = () => {
       if (search) params.search = search;
       if (authorFilter) params.author = authorFilter;
       if (typeFilter !== 'all') params.type = typeFilter;
+      if (spamFilter !== 'all') params.spamStatus = spamFilter;
 
       const response = await authService.admin.getAllPosts(params);
       setPosts(response.data.posts);
@@ -117,6 +119,19 @@ const AdminPostManagement = () => {
               <option value="link">Link</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Spam Status</label>
+            <select
+              value={spamFilter}
+              onChange={(e) => setSpamFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="all">All</option>
+              <option value="not_spam">Not Spam</option>
+              <option value="might_be_spam">Might Be Spam</option>
+              <option value="spam">Spam</option>
+            </select>
+          </div>
           <div className="flex items-end">
             <button
               onClick={() => { setPage(1); fetchPosts(); }}
@@ -140,6 +155,14 @@ const AdminPostManagement = () => {
                   <span className="font-medium">{post.community?.name || 'General'}</span>
                   <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
                     {post.type}
+                  </span>
+                  <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                    post.spamStatus === 'spam' ? 'bg-red-100 text-red-800' :
+                    post.spamStatus === 'might_be_spam' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {post.spamStatus === 'not_spam' ? 'Clean' :
+                     post.spamStatus === 'might_be_spam' ? 'Suspicious' : 'Spam'}
                   </span>
                 </div>
                 <p className="text-gray-700 line-clamp-3">{post.content}</p>
