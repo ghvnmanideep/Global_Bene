@@ -4,6 +4,7 @@ const SpamPost = require('../models/spamPost');
 const User = require('../models/user');
 const { createNotification } = require('./notification.controller');
 const { checkSpam } = require('../utils/spamDetection');
+const { logPostComment } = require('../utils/interactionLogger');
 
 // Create a comment
 exports.createComment = async (req, res) => {
@@ -97,6 +98,14 @@ exports.createComment = async (req, res) => {
     }
 
     await comment.populate('author', 'username profile');
+
+    // Log comment interaction
+    await logPostComment(userId, postId, comment._id, {
+      postCategory: post.category,
+      postType: post.type,
+      communityId: post.community,
+      isReply: !!parentCommentId
+    });
 
     // Create notification for post author if commenter is not the author
     if (post.author.toString() !== userId) {

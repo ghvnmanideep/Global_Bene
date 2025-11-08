@@ -123,4 +123,4 @@ exports.getUnreadCount = async (req, res) => {
   }
 };
 
-module.exports = { createNotification, getNotifications: exports.getNotifications, markAsRead: exports.markAsRead, markAllAsRead: exports.markAllAsRead, getUnreadCount: exports.getUnreadCount };
+module.exports = { createNotification, createSpamNotification, createBanNotification, getNotifications: exports.getNotifications, markAsRead: exports.markAsRead, markAllAsRead: exports.markAllAsRead, getUnreadCount: exports.getUnreadCount };
