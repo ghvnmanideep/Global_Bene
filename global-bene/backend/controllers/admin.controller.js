@@ -161,6 +161,18 @@ exports.getAllPosts = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
+    // Clean spam posts for admin view
+    const cleanedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      if (postObj.spamStatus === 'spam') {
+        postObj.content = 'This post has been flagged as spam and its content is hidden.';
+        postObj.imageUrl = null; // Hide spam images
+        postObj.imagePublicId = null;
+        postObj.linkUrl = ''; // Hide spam links
+      }
+      return postObj;
+    });
+
     const total = await Post.countDocuments(query);
 
     res.json({
@@ -199,7 +211,16 @@ exports.deletePost = async (req, res) => {
       await community.save();
     }
 
+    // Get post author before deletion for notification
+    const postAuthor = post.author;
+
     await Post.findByIdAndDelete(id);
+
+    // Send notification to post author
+    if (postAuthor) {
+      const message = `Your post "${post.title}" has been deleted by an admin.`;
+      await createNotification(postAuthor, 'delete', message, req.user.id);
+    }
 
     res.json({ message: 'Post deleted successfully' });
   } catch (err) {
@@ -357,8 +378,20 @@ exports.getReportedPosts = async (req, res) => {
 
     const total = await Post.countDocuments({ 'spamReports.0': { $exists: true } });
 
+    // Clean spam posts for admin view
+    const cleanedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      if (postObj.spamStatus === 'spam') {
+        postObj.content = 'This post has been flagged as spam and its content is hidden.';
+        postObj.imageUrl = null; // Hide spam images
+        postObj.imagePublicId = null;
+        postObj.linkUrl = ''; // Hide spam links
+      }
+      return postObj;
+    });
+
     res.json({
-      posts,
+      posts: cleanedPosts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

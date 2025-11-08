@@ -5,6 +5,15 @@ const SpamPost = require('../models/spamPost');
 const User = require('../models/user');
 const { createNotification } = require('./notification.controller');
 const { checkSpam } = require('../utils/spamDetection');
+const {
+  logPostView,
+  logPostLike,
+  logPostUnlike,
+  logPostSave,
+  logPostUnsave,
+  logPostVote,
+  logVoteRemove
+} = require('../utils/interactionLogger');
 
 // Create a new post
 exports.createPost = async (req, res) => {
@@ -112,9 +121,27 @@ const processSpamCheck = async (postId, title, content, tags) => {
     post.spamReason = spamResult.reason;
     await post.save();
 
-    // If spam detected, handle spam actions
+    // If spam detected, handle spam actions (but don't delete the post)
     if (spamResult.isSpam) {
       console.log('Spam detected asynchronously for post:', postId);
+
+      // Create spam record for tracking
+      const spamPost = new SpamPost({
+        originalPostId: postId,
+        title,
+        content: content || '',
+        author: post.author,
+        community: post.community,
+        type: post.type,
+        linkUrl: post.linkUrl,
+        imageUrl: post.imageUrl,
+        imagePublicId: post.imagePublicId,
+        tags: post.tags,
+        category: post.category,
+        spamReason: spamResult.reason,
+        detectedAt: new Date(),
+      });
+      await spamPost.save();
 
       // Update user's spam post count
       const user = await User.findById(post.author);
@@ -185,6 +212,11 @@ exports.getAllPosts = async (req, res) => {
       ];
     }
 
+    // Filter out spam posts for regular users, but allow admins to see all posts
+    if (!req.user || req.user.role !== 'admin') {
+      query.spamStatus = { $ne: 'spam' };
+    }
+
     let sortOption = {};
     if (sortBy === 'hot') {
       sortOption = { score: -1, createdAt: -1 };
@@ -238,6 +270,15 @@ exports.getPostById = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
+    // Log post view interaction
+    if (req.user && req.user.id) {
+      await logPostView(req.user.id, id, {
+        postCategory: post.category,
+        postType: post.type,
+        communityId: post.community
+      });
+    }
+
     res.json(post);
   } catch (err) {
     console.error('Get post by ID error:', err);
@@ -269,6 +310,13 @@ exports.votePost = async (req, res) => {
 
     await post.save();
 
+    // Log vote interaction
+    await logPostVote(userId, id, voteType, {
+      postCategory: post.category,
+      postType: post.type,
+      communityId: post.community
+    });
+
     // Create notification for post author if voter is not the author
     if (post.author.toString() !== userId) {
       const message = `${req.user.username} ${voteType}d your post "${post.title}"`;
@@ -296,6 +344,13 @@ exports.removeVote = async (req, res) => {
     post.votes = post.votes.filter(v => v.userId.toString() !== userId);
     await post.save();
 
+    // Log vote removal interaction
+    await logVoteRemove(userId, id, {
+      postCategory: post.category,
+      postType: post.type,
+      communityId: post.community
+    });
+
     res.json({ message: 'Vote removed', post });
   } catch (err) {
     console.error('Remove vote error:', err);
@@ -317,8 +372,20 @@ exports.toggleSavePost = async (req, res) => {
     const isSaved = post.savedBy.includes(userId);
     if (isSaved) {
       post.savedBy = post.savedBy.filter(id => id.toString() !== userId);
+      // Log unsave interaction
+      await logPostUnsave(userId, id, {
+        postCategory: post.category,
+        postType: post.type,
+        communityId: post.community
+      });
     } else {
       post.savedBy.push(userId);
+      // Log save interaction
+      await logPostSave(userId, id, {
+        postCategory: post.category,
+        postType: post.type,
+        communityId: post.community
+      });
     }
 
     await post.save();

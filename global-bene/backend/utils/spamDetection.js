@@ -12,6 +12,16 @@ const PROMOTIONAL_KEYWORDS = [
   'act now', 'click here', 'sign up', 'register', 'join now', 'apply now',
   'get started', 'download', 'install', 'app', 'mobile app', 'software',
 
+  // Loan/Financial Scams
+  'loan', 'instant loan', 'quick loan', 'easy loan', 'personal loan', 'business loan',
+  'home loan', 'car loan', 'education loan', 'approval', 'no credit check', 'bad credit',
+  'pre-approved', 'guaranteed approval', 'instant approval', 'fast approval',
+  'no documentation', 'minimal documentation', 'online loan', 'loan online',
+  'get loan', 'apply for loan', 'loan application', 'loan offer', 'loan deal',
+  'funds', 'receive funds', 'transfer funds', 'disburse', 'disbursement',
+  'emi', 'interest rate', 'low interest', 'zero interest', 'flexible repayment',
+  'collateral free', 'unsecured loan', 'secured loan', 'loan against',
+
   // Services/Platforms
   'netflix', 'spotify', 'amazon', 'uber', 'paypal', 'ebay', 'facebook', 'instagram',
   'google', 'apple', 'microsoft', 'bank', 'account', 'password', 'verify',
@@ -40,10 +50,15 @@ const checkPromotionalSpam = (text) => {
   );
 
   // If multiple promotional keywords are found, consider it spam
-  if (foundKeywords.length >= 2) {
+  // Lower threshold for loan-related keywords since they're highly suspicious
+  const hasLoanKeywords = foundKeywords.some(keyword =>
+    keyword.includes('loan') || keyword.includes('approval') || keyword.includes('funds')
+  );
+
+  if (foundKeywords.length >= 2 || (hasLoanKeywords && foundKeywords.length >= 1)) {
     return {
       isPromotionalSpam: true,
-      confidence: 0.9, // High confidence for keyword-based detection
+      confidence: 0.95, // Very high confidence for loan scams
       keywords: foundKeywords,
       reason: `Detected promotional spam keywords: ${foundKeywords.join(', ')}`
     };
