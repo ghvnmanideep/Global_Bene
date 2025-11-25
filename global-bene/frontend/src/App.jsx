@@ -178,7 +178,7 @@ export default function App() {
                         sessionStorage.clear();
                         // Dispatch custom event to update sidebar immediately
                         window.dispatchEvent(new Event('authChange'));
-                        window.location.href = '/home';
+                        window.location.href = '/';
                       }}
                       className={`w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded shadow font-semibold ${sidebarOpen ? '' : 'px-2 text-sm'}`}
                     >{sidebarOpen ? 'Logout' : '🚪'}</button>
