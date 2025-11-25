@@ -1,23 +1,7 @@
-import axios from 'axios';
+import axiosInstance from '../utils/axiosinstance';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const api = axios.create({
-  baseURL: API,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Attach accessToken in requests when needed
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Use the centralized axios instance
+const api = axiosInstance;
 
 export const commentService = {
   getPostComments: (postId) => api.get(`/comments/post/${postId}`),
