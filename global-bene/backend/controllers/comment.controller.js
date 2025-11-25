@@ -1,9 +1,9 @@
 const Comment = require('../models/comment');
 const Post = require('../models/post');
-const SpamPost = require('../models/spamPost');
+const Community = require('../models/community');
 const User = require('../models/user');
 const { createNotification } = require('./notification.controller');
-const { checkSpam } = require('../utils/spamDetection');
+const { logActivity } = require('../utils/logActivity.utils');
 const { logPostComment } = require('../utils/interactionLogger');
 
 // Create a comment
@@ -11,7 +11,7 @@ exports.createComment = async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, parentCommentId } = req.body;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ message: 'Comment content is required' });
@@ -22,62 +22,13 @@ exports.createComment = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    // Check for spam before saving
-    console.log('Checking spam for comment:', content.trim().substring(0, 100) + '...');
-    const spamResult = await checkSpam(content.trim());
-    console.log('Comment spam check result:', spamResult);
-
-    // If spam detected, save to spam collection and return error
-    if (spamResult.isSpam) {
-      console.log('Comment spam detected, saving to SpamPost collection');
-
-      // Create spam record
-      const spamComment = new SpamPost({
-        originalPostId: postId,
-        title: `Comment on: ${post.title.substring(0, 50)}...`,
-        content: content.trim(),
-        author: userId,
-        community: post.community,
-        type: 'comment',
-        spamReason: spamResult.reason,
-        spamConfidence: spamResult.confidence,
-      });
-      await spamComment.save();
-
-      // Update user's spam post count
-      const user = await User.findById(userId);
-      user.spamPostCount += 1;
-      await user.save();
-
-      // Send notification to user
-      await createNotification(userId, 'spam', `Your comment was detected as spam and has been blocked. Reason: ${spamResult.reason}`, null, postId, null, null);
-
-      // Check if user should be banned (>5 spam posts)
-      if (user.spamPostCount >= 5) {
-        user.isBanned = true;
-        user.bannedReason = 'Account banned due to multiple spam posts and comments';
-        user.bannedAt = new Date();
-        await user.save();
-
-        // Notify user about ban
-        await createNotification(userId, 'ban', 'Your account has been permanently banned due to multiple spam posts and comments.', null, null, null, null);
-      }
-
-      return res.status(400).json({
-        message: 'Your comment has been detected as spam and cannot be posted.',
-        spamDetected: true,
-        spamReason: spamResult.reason
-      });
-    }
+    // Skip spam detection for comments
 
     const comment = new Comment({
       content: content.trim(),
       author: userId,
       post: postId,
       parentComment: parentCommentId || null,
-      spamStatus: spamResult.spamStatus,
-      spamConfidence: spamResult.confidence,
-      spamReason: spamResult.reason,
     });
 
     // Save the comment if not spam
@@ -98,6 +49,16 @@ exports.createComment = async (req, res) => {
     }
 
     await comment.populate('author', 'username profile');
+
+    // Log comment activity
+    await logActivity(
+      userId,
+      parentCommentId ? "reply" : "comment",
+      parentCommentId ? `User replied to comment on post: "${post.title}"` : `User commented on post: "${post.title}"`,
+      req,
+      "comment",
+      comment._id
+    );
 
     // Log comment interaction
     await logPostComment(userId, postId, comment._id, {
@@ -128,18 +89,48 @@ exports.getPostComments = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    const comments = await Comment.find({ post: postId, parentComment: null })
+    // Get all comments for the post (both top-level and replies)
+    const allComments = await Comment.find({ post: postId })
       .populate('author', 'username profile')
-      .populate({
-        path: 'replies',
-        populate: {
-          path: 'author',
-          select: 'username profile',
-        },
-      })
-      .sort({ score: -1, createdAt: -1 });
+      .sort({ createdAt: 1 }); // Sort by creation time
 
-    res.json({ comments });
+    // Create a map for quick lookup
+    const commentMap = {};
+    const topLevelComments = [];
+
+    // First pass: create map and identify top-level comments
+    allComments.forEach(comment => {
+      commentMap[comment._id] = {
+        ...comment.toObject(),
+        replies: []
+      };
+
+      if (!comment.parentComment) {
+        topLevelComments.push(commentMap[comment._id]);
+      }
+    });
+
+    // Second pass: nest replies
+    allComments.forEach(comment => {
+      if (comment.parentComment && commentMap[comment.parentComment]) {
+        commentMap[comment.parentComment].replies.push(commentMap[comment._id]);
+      }
+    });
+
+    // Sort top-level comments by score (upvotes - downvotes) then by creation time
+    topLevelComments.sort((a, b) => {
+      const scoreA = (a.upvotes?.length || 0) - (a.downvotes?.length || 0);
+      const scoreB = (b.upvotes?.length || 0) - (b.downvotes?.length || 0);
+
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA; // Higher score first
+      }
+
+      // If scores are equal, sort by creation time (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    res.json({ comments: topLevelComments });
   } catch (err) {
     console.error('Get post comments error:', err);
     res.status(500).json({ message: 'Server error fetching comments' });
@@ -151,7 +142,7 @@ exports.voteComment = async (req, res) => {
   try {
     const { id } = req.params;
     const { voteType } = req.body;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     if (!['upvote', 'downvote'].includes(voteType)) {
       return res.status(400).json({ message: 'Invalid vote type' });
@@ -162,18 +153,87 @@ exports.voteComment = async (req, res) => {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
-    // Remove existing vote
-    comment.votes = comment.votes.filter(v => v.userId.toString() !== userId);
+    // Handle old votes array format for backward compatibility
+    if (comment.votes && Array.isArray(comment.votes)) {
+      // Remove existing vote
+      comment.votes = comment.votes.filter(v => v.userId.toString() !== userId);
+      // Add new vote
+      comment.votes.push({ userId, voteType });
+    } else {
+      // Handle new upvotes/downvotes arrays
+      // Initialize arrays if they don't exist
+      if (!Array.isArray(comment.upvotes)) comment.upvotes = [];
+      if (!Array.isArray(comment.downvotes)) comment.downvotes = [];
 
-    // Add new vote
-    comment.votes.push({ userId, voteType });
+      // Remove user from both arrays first
+      comment.upvotes = comment.upvotes.filter(id => id && id.toString() !== userId);
+      comment.downvotes = comment.downvotes.filter(id => id && id.toString() !== userId);
+
+      // Add vote to appropriate array
+      if (voteType === 'upvote') {
+        comment.upvotes.push(userId);
+      } else {
+        comment.downvotes.push(userId);
+      }
+    }
 
     await comment.save();
 
-    res.json({ message: 'Vote recorded', comment });
+    // Log comment voting activity
+    await logActivity(
+      userId,
+      voteType === 'upvote' ? 'upvote' : 'downvote',
+      `User ${voteType}d comment: "${comment.content.substring(0, 50)}..."`,
+      req,
+      "comment",
+      id
+    );
+
+    res.json({
+      message: 'Vote recorded',
+      data: {
+        upvotes: comment.upvotes,
+        downvotes: comment.downvotes,
+        userVote: voteType === 'upvote' ? 'up' : 'down'
+      }
+    });
   } catch (err) {
     console.error('Vote comment error:', err);
     res.status(500).json({ message: 'Server error voting on comment' });
+  }
+};
+
+// Remove vote from comment
+exports.removeVote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const comment = await Comment.findById(id);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    // Handle old votes array format for backward compatibility
+    if (comment.votes && Array.isArray(comment.votes)) {
+      comment.votes = comment.votes.filter(v => v.userId.toString() !== userId);
+    } else {
+      // Handle new upvotes/downvotes arrays
+      // Initialize arrays if they don't exist
+      if (!Array.isArray(comment.upvotes)) comment.upvotes = [];
+      if (!Array.isArray(comment.downvotes)) comment.downvotes = [];
+
+      // Remove user from both arrays
+      comment.upvotes = comment.upvotes.filter(id => id && id.toString() !== userId);
+      comment.downvotes = comment.downvotes.filter(id => id && id.toString() !== userId);
+    }
+
+    await comment.save();
+
+    res.json({ message: 'Vote removed', comment });
+  } catch (err) {
+    console.error('Remove vote from comment error:', err);
+    res.status(500).json({ message: 'Server error removing vote from comment' });
   }
 };
 
@@ -182,7 +242,7 @@ exports.updateComment = async (req, res) => {
   try {
     const { id } = req.params;
     const { content } = req.body;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ message: 'Comment content is required' });
@@ -202,6 +262,16 @@ exports.updateComment = async (req, res) => {
 
     await comment.save();
 
+    // Log comment update activity
+    await logActivity(
+      userId,
+      "update-reply",
+      `User updated comment: "${comment.content.substring(0, 50)}..."`,
+      req,
+      "comment",
+      id
+    );
+
     res.json({ message: 'Comment updated successfully', comment });
   } catch (err) {
     console.error('Update comment error:', err);
@@ -213,14 +283,29 @@ exports.updateComment = async (req, res) => {
 exports.deleteComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     const comment = await Comment.findById(id);
     if (!comment) {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
-    if (comment.author.toString() !== userId && req.user.role !== 'admin') {
+    // Check if user is author, admin, or community creator/moderator
+    const isAuthor = comment.author.toString() === userId;
+    const isAdmin = req.user.role === 'admin';
+
+    let isCommunityModerator = false;
+    const commentPost = await Post.findById(comment.post);
+    if (commentPost && commentPost.community) {
+      const community = await Community.findById(commentPost.community);
+      if (community) {
+        const isCreator = community.creator.toString() === userId;
+        const isModerator = community.moderators.includes(userId);
+        isCommunityModerator = isCreator || isModerator;
+      }
+    }
+
+    if (!isAuthor && !isAdmin && !isCommunityModerator) {
       return res.status(403).json({ message: 'Not authorized to delete this comment' });
     }
 
@@ -245,6 +330,16 @@ exports.deleteComment = async (req, res) => {
     await Comment.deleteMany({ parentComment: id });
 
     await Comment.findByIdAndDelete(id);
+
+    // Log comment deletion activity
+    await logActivity(
+      userId,
+      "delete-reply",
+      `User deleted comment: "${comment.content.substring(0, 50)}..."`,
+      req,
+      "comment",
+      id
+    );
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (err) {

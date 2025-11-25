@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['comment', 'upvote', 'downvote', 'follow', 'mention', 'reply', 'admin_message'],
+    enum: ['comment', 'upvote', 'downvote', 'follow', 'mention', 'reply', 'admin_message', 'spam', 'ban'],
     required: true,
   },
   message: {
@@ -42,3 +42,4 @@ const notificationSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('Notification', notificationSchema);
+  

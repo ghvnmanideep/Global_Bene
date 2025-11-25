@@ -16,7 +16,22 @@ export default function Search() {
     setLoading(true);
     try {
       if (mode === "posts") {
-        const res = await postService.getAllPosts({ search: term, page, limit: 10 });
+        // Handle hashtag search for posts
+        let searchParams = { page, limit: 10 };
+        if (term.startsWith('#')) {
+          // Remove # and search in tags
+          const tagQuery = term.substring(1).trim();
+          if (tagQuery) {
+            searchParams.tag = tagQuery;
+          } else {
+            setResults([]);
+            setLoading(false);
+            return;
+          }
+        } else {
+          searchParams.search = term;
+        }
+        const res = await postService.getAllPosts(searchParams);
         setResults(res.data.posts);
         setTotalPages(res.data.pagination.pages);
       } else {
@@ -47,7 +62,7 @@ export default function Search() {
           className={`px-4 py-2 rounded font-semibold ${mode === "users" ? "bg-orange-500 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200"}`}>Users</button>
       </div>
       <form onSubmit={handleSearch} className="flex gap-2 mb-8 justify-center">
-        <input value={term} onChange={e=>setTerm(e.target.value)} required className="w-2/3 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder={`Search ${mode}...`} />
+        <input value={term} onChange={e=>setTerm(e.target.value)} required className="w-2/3 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder={mode === "posts" ? "Search posts or use #tag for tag search..." : `Search ${mode}...`} />
         <button type="submit" className="bg-orange-500 text-white px-4 py-2 rounded font-bold">Search</button>
       </form>
       {loading ? <div className="text-center">Loading...</div> : (

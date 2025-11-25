@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const postController = require('../controllers/post.controller');
-const { authRequired } = require('../middleware/auth.middleware');
+const { verifyJWT } = require('../middleware/auth.middleware');
 const parser = require('../utils/multer.cloudinary');
 
 // Public routes
@@ -9,12 +9,14 @@ router.get('/', postController.getAllPosts);
 router.get('/:id', postController.getPostById);
 
 // Protected routes
-router.post('/', authRequired, parser.single('image'), postController.createPost);
-router.put('/:id', authRequired, parser.single('image'), postController.updatePost);
-router.post('/:id/vote', authRequired, postController.votePost);
-router.delete('/:id/vote', authRequired, postController.removeVote);
-router.post('/:id/save', authRequired, postController.toggleSavePost);
-router.delete('/:id', authRequired, postController.deletePost);
+router.post('/', verifyJWT, parser.single('image'), postController.createPost);
+router.put('/:id', verifyJWT, parser.single('image'), postController.updatePost);
+router.post('/:id/vote', verifyJWT, postController.votePost);
+router.delete('/:id/vote', verifyJWT, postController.removeVote);
+router.post('/:id/like', verifyJWT, postController.toggleLikePost);
+router.post('/:id/save', verifyJWT, postController.toggleSavePost);
+router.post('/:id/share', verifyJWT, postController.sharePost);
+router.delete('/:id', verifyJWT, postController.deletePost);
 
 module.exports = router;
 

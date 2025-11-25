@@ -16,11 +16,15 @@ const seedAdmin = async () => {
       process.exit(0);
     }
 
-    // Create default admin user
+    // Create default admin user from environment variables
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@globalbene.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminPass123!';
+
     const adminData = {
-      username: 'admin',
-      email: 'admin@globalbene.com',
-      passwordHash: 'AdminPass123!', // This will be hashed by pre-save hook
+      username: adminUsername,
+      email: adminEmail,
+      passwordHash: adminPassword, // This will be hashed by pre-save hook
       role: 'admin',
       emailVerified: true,
     };
@@ -29,9 +33,9 @@ const seedAdmin = async () => {
     await admin.save();
 
     console.log('✅ Admin user created successfully!');
-    console.log('Username: admin');
-    console.log('Email: admin@globalbene.com');
-    console.log('Password: AdminPass123!');
+    console.log(`Username: ${adminUsername}`);
+    console.log(`Email: ${adminEmail}`);
+    console.log(`Password: ${adminPassword}`);
     console.log('⚠️  IMPORTANT: Change the default password after first login!');
 
     process.exit(0);

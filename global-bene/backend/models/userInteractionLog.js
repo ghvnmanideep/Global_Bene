@@ -37,7 +37,7 @@ const userInteractionLogSchema = new mongoose.Schema(
     },
     targetId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: function() { return this.targetType !== 'search'; },
       index: true
     },
     metadata: {

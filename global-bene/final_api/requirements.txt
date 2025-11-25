@@ -1,0 +1,15 @@
+pymongo
+redis
+upstash-redis
+python-dotenv
+pandas
+numpy
+sentence-transformers
+faiss-cpu
+fastapi
+uvicorn
+pydantic
+python-multipart
+celery
+pytest
+pytest-cov

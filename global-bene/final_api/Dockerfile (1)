@@ -1,0 +1,29 @@
+FROM python:3.10-slim
+
+# Prevent Python buffering
+ENV PYTHONUNBUFFERED=1
+
+# Create app directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt /app/
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy project files
+COPY . /app/
+
+# Expose HF port
+EXPOSE 7860
+
+# Run FastAPI app
+CMD ["python", "main_api.py"]

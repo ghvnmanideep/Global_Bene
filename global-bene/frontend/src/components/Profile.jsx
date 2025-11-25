@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import PostCard from './PostCard';
 import { postService } from '../services/postService';
 import { communityService } from '../services/communityService';
+import { commentService } from '../services/commentService';
 import CreatePost from './CreatePost';
 
 export default function Profile() {
@@ -18,6 +19,7 @@ export default function Profile() {
   const [followingDetails, setFollowingDetails] = useState([]);
   const [savedPosts, setSavedPosts] = useState([]);
   const [userComments, setUserComments] = useState([]);
+  const [userActivities, setUserActivities] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [editingPost, setEditingPost] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -178,8 +180,19 @@ export default function Profile() {
       }
     }
 
+    async function fetchUserActivities() {
+      if (!isOwnProfile || !user || !displayedId) return;
+      try {
+        const res = await authService.getUserInteractionLogs(displayedId);
+        setUserActivities(res.data.activities || []);
+      } catch (err) {
+        console.error('Error fetching user activities:', err);
+      }
+    }
+
     fetchSavedPosts();
     fetchUserComments();
+    fetchUserActivities();
   }, [isOwnProfile, displayedId, user]);
   const followerCount = displayedUser?.followers?.length || 0;
   const followingCount = displayedUser?.following?.length || 0;
@@ -386,6 +399,12 @@ export default function Profile() {
             >
               Comments
             </button>
+            <button
+              onClick={() => setActiveTab('activities')}
+              className={`px-4 py-2 font-semibold ${activeTab === 'activities' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-600 hover:text-orange-600'}`}
+            >
+              Activity Logs
+            </button>
           </div>
         </div>
       )}
@@ -473,6 +492,53 @@ export default function Profile() {
                       >
                         Delete
                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'activities' && isOwnProfile && (
+          <>
+            <h2 className="text-2xl font-bold mb-4 text-orange-800">Activity Logs</h2>
+            {userActivities.length === 0 ? (
+              <p className="p-8 text-center text-gray-500">No activities yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {userActivities.map(activity => (
+                  <div key={activity.event_id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="flex items-start space-x-4">
+                      <div className="flex-shrink-0">
+                        {activity.event_type.includes('login') && <span className="text-2xl">🔐</span>}
+                        {activity.event_type.includes('logout') && <span className="text-2xl">🚪</span>}
+                        {activity.event_type.includes('post') && <span className="text-2xl">📝</span>}
+                        {activity.event_type.includes('comment') && <span className="text-2xl">💬</span>}
+                        {activity.event_type.includes('vote') && <span className="text-2xl">👍</span>}
+                        {activity.event_type.includes('follow') && <span className="text-2xl">👥</span>}
+                        {!['login', 'logout', 'post', 'comment', 'vote', 'follow'].some(a => activity.event_type.includes(a)) && <span className="text-2xl">📋</span>}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
+                            {activity.event_type.replace('_', ' ')}
+                          </h3>
+                          <span className="text-sm text-gray-500">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 dark:text-gray-300 mb-3">
+                          {activity.entity_type} interaction
+                        </p>
+                        {activity.props && (
+                          <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                            {activity.props.browser && <p><strong>Browser:</strong> {activity.props.browser}</p>}
+                            {activity.props.platform && <p><strong>Platform:</strong> {activity.props.platform}</p>}
+                            {activity.props.ip_address && <p><strong>IP:</strong> {activity.props.ip_address}</p>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

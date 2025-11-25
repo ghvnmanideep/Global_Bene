@@ -9,9 +9,9 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false },
 });
 
-exports.sendMail = async (to, subject, html) => {
+exports.sendMail = async (to, subject, html, from = null) => {
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
+    from: from || process.env.EMAIL_FROM,
     to,
     subject,
     html,
