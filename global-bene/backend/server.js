@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const connectDB = require('./config/db');
 
 // Environment validation
@@ -77,11 +78,25 @@ connectWithRetry();
 
 app.use(
   helmet({
-    crossOriginOpenerPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
     crossOriginEmbedderPolicy: false,
     contentSecurityPolicy: false, // optional for local dev
   })
 );
+
+// Compression middleware for faster responses
+app.use(compression({
+  level: 6, // compression level (1-9, 6 is good balance)
+  threshold: 1024, // only compress responses larger than 1KB
+  filter: (req, res) => {
+    // Don't compress responses with this request header
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression filter function
+    return compression.filter(req, res);
+  }
+}));
 
 
 // CORS configuration for production
@@ -94,7 +109,8 @@ const corsOptions = {
       'http://localhost:5173',
       'http://localhost:5174',
       'https://localhost:5173',
-      'https://localhost:5174','https://global-bene-qwnw.onrender.com'
+      'https://localhost:5174',
+      'https://global-bene-qwnw.onrender.com'
     ];
 
     // In production, add your frontend domain

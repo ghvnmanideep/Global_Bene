@@ -15,8 +15,11 @@ axiosInstance.interceptors.request.use(
   (config) => {
     // Add request timestamp for debugging
     config.metadata = { startTime: new Date() };
+    const token = sessionStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-    // Log requests in development
     if (import.meta.env.DEV) {
       console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
     }
