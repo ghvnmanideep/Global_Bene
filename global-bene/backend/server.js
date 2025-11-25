@@ -17,6 +17,9 @@ const contactRoutes = require('./routes/contact.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes = require('./routes/admin.routes');
 const recommendationRoutes = require('./routes/recommendation.routes');
+const activityLogRoutes = require('./routes/activityLog.routes');
+const voteRoutes = require('./routes/vote.routes');
+const searchRoutes = require('./routes/search.routes');
 
 // Passport config
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -68,6 +71,9 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/votes', voteRoutes);
+app.use('/api/search', searchRoutes);
 
 // ✅ Global error handler
 app.use((err, req, res, next) => {

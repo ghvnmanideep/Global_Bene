@@ -156,6 +156,7 @@
 // backend/controllers/user.controller.js
 const User = require("../models/user");
 const { createNotification } = require('./notification.controller');
+const { logUserFollow, logUserUnfollow, logProfileView } = require('../utils/interactionLogger');
 
 // =================== GET CURRENT USER ===================
 exports.getMe = async (req, res) => {
@@ -267,6 +268,9 @@ exports.followUser = async (req, res) => {
     await me.save();
     await target.save();
 
+    // Log follow interaction
+    await logUserFollow(userId, targetUserId);
+
     // Create notification for the followed user
     await createNotification(targetUserId, 'follow', `${me.username} started following you`, userId);
 
@@ -298,6 +302,9 @@ exports.unfollowUser = async (req, res) => {
 
     await me.save();
     await target.save();
+
+    // Log unfollow interaction
+    await logUserUnfollow(userId, targetUserId);
 
     res.json({ success: true, message: "Unfollowed user." });
   } catch (err) {
@@ -349,6 +356,11 @@ exports.getUserById = async (req, res) => {
 
     if (!user)
       return res.status(404).json({ message: "User not found" });
+
+    // Log profile view interaction
+    if (req.user && req.user.id && req.user.id !== id) {
+      await logProfileView(req.user.id, id);
+    }
 
     res.json(user);
   } catch (err) {

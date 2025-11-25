@@ -6,13 +6,18 @@ export default function CreateCommunity({ onClose, onSuccess }) {
     name: '',
     displayName: '',
     description: '',
+    rules: '',
     iconUrl: '',
     bannerUrl: '',
     isPrivate: false,
+    type: 'general',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [iconFile, setIconFile] = useState(null);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [iconPreview, setIconPreview] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState(null);
 
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -33,7 +38,36 @@ export default function CreateCommunity({ onClose, onSuccess }) {
     }
 
     try {
-      await communityService.createCommunity(formData);
+      const submitData = { ...formData };
+
+      // Handle file uploads if files are selected
+      if (iconFile) {
+        const iconFormData = new FormData();
+        iconFormData.append('image', iconFile);
+        const iconResponse = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/uploads/community-image', {
+          method: 'POST',
+          body: iconFormData
+        });
+        const iconResult = await iconResponse.json();
+        if (iconResult.url) {
+          submitData.iconUrl = iconResult.url;
+        }
+      }
+
+      if (bannerFile) {
+        const bannerFormData = new FormData();
+        bannerFormData.append('image', bannerFile);
+        const bannerResponse = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/uploads/community-image', {
+          method: 'POST',
+          body: bannerFormData
+        });
+        const bannerResult = await bannerResponse.json();
+        if (bannerResult.url) {
+          submitData.bannerUrl = bannerResult.url;
+        }
+      }
+
+      await communityService.createCommunity(submitData);
       onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Error creating community');
@@ -98,6 +132,25 @@ export default function CreateCommunity({ onClose, onSuccess }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Type *
+              </label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                required
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="general">General</option>
+                <option value="text">Text Focus</option>
+                <option value="image">Image Focus</option>
+                <option value="link">Link Focus</option>
+                <option value="mixed">Mixed Content</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
               <textarea
@@ -108,6 +161,21 @@ export default function CreateCommunity({ onClose, onSuccess }) {
                 maxLength={500}
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                 placeholder="What is this community about?"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Community Rules (optional)
+              </label>
+              <textarea
+                name="rules"
+                value={formData.rules}
+                onChange={handleChange}
+                rows={4}
+                maxLength={2000}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                placeholder="List your community rules, one per line..."
               />
             </div>
 
@@ -145,16 +213,30 @@ export default function CreateCommunity({ onClose, onSuccess }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Banner URL (optional)
+                Banner Image (optional)
               </label>
               <input
-                type="url"
-                name="bannerUrl"
-                value={formData.bannerUrl}
-                onChange={handleChange}
+                type="file"
+                accept="image/*"
+                onChange={async e => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    setBannerFile(file);
+                    const reader = new FileReader();
+                    reader.onload = (e) => setBannerPreview(e.target.result);
+                    reader.readAsDataURL(file);
+                  } else {
+                    setBannerFile(null);
+                    setBannerPreview(null);
+                  }
+                }}
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="https://example.com/banner.jpg"
               />
+              {bannerPreview && (
+                <div className="mt-2">
+                  <img src={bannerPreview} alt="Banner Preview" className="w-full h-32 object-cover rounded-lg" />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center">

@@ -165,7 +165,7 @@ const AdminPostManagement = () => {
                      post.spamStatus === 'might_be_spam' ? 'Suspicious' : 'Spam'}
                   </span>
                 </div>
-                <p className="text-gray-700 line-clamp-3">{post.content}</p>
+                <p className="text-gray-700 line-clamp-3">{post.content?.text || post.content || 'No content'}</p>
                 <div className="mt-2 text-xs text-gray-500">
                   {new Date(post.createdAt).toLocaleDateString()} •
                   {post.upvotes} upvotes • {post.commentCount} comments

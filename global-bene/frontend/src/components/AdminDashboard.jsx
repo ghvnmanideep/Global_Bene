@@ -97,7 +97,7 @@ const AdminDashboard = () => {
 
       <div className="mt-8 bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <button
             onClick={() => window.location.href = '/admin/users'}
             className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
@@ -109,6 +109,12 @@ const AdminDashboard = () => {
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Posts
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/communities'}
+            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Manage Communities
           </button>
           <button
             onClick={() => window.location.href = '/admin/notifications'}

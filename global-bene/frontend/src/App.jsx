@@ -14,6 +14,7 @@ import Dashboard from './components/Dashboard';
 import CommunityList from './components/CommunityList';
 import Search from './components/Search';
 import CommunityDetail from './components/CommunityDetail';
+import EditCommunity from './components/EditCommunity';
 import PostDetail from './components/PostDetail';
 import CreatePost from './components/CreatePost';
 import CreateCommunity from './components/CreateCommunity';
@@ -25,6 +26,7 @@ import AdminPostManagement from './components/AdminPostManagement';
 import AdminNotifications from './components/AdminNotifications';
 import AdminSpamReports from './components/AdminSpamReports';
 import AdminSpamManagement from './components/AdminSpamManagement';
+import AdminCommunityManagement from './components/AdminCommunityManagement';
 import AdminDashboard from './components/AdminDashboard';
 import { communityService } from './services/communityService';
 
@@ -118,7 +120,7 @@ export default function App() {
         )}
 
         {/* Left Sidebar */}
-        <aside className={`min-h-screen bg-white/90 dark:bg-gray-900/90 shadow-md flex flex-col transition-all duration-300 z-50 ${sidebarOpen ? 'w-64' : 'w-0'} ${isMobile ? 'fixed' : 'relative'}`}>
+        <aside className={`min-h-screen bg-white/90 dark:bg-gray-900/90 shadow-md flex flex-col transition-all duration-300 z-50 ${sidebarOpen ? 'w-64' : 'w-0'} ${isMobile ? (sidebarOpen ? 'fixed' : 'hidden') : 'relative'}`}>
           <div className="px-8 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <Link to="/" className={`text-3xl font-bold text-blue-600 dark:text-blue-400 hover:underline ${sidebarOpen ? '' : 'hidden'}`}>Global Bene</Link>
             {isMobile && (
@@ -218,12 +220,13 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot" element={<ForgotPassword />} />
           <Route path="/reset/:token" element={<ResetPassword />} />
-          <Route path="/verify/:token" element={<VerifyEmail />} />
+          <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/auth/callback" element={<GLogin />} />
           <Route path="/communities" element={<CommunityList />} />
           <Route path="/search" element={<Search />} />
           <Route path="/contact" element={<ContactUs darkMode={darkMode} />} />
           <Route path="/community/:id" element={<CommunityDetail />} />
+          <Route path="/community/:id/edit" element={<ProtectedRoute><EditCommunity /></ProtectedRoute>} />
           <Route path="/post/:id" element={<PostDetail />} />
 
           {/* Protected Routes */}
@@ -232,6 +235,7 @@ export default function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<AdminUserManagement />} />
             <Route path="/admin/posts" element={<AdminPostManagement />} />
+            <Route path="/admin/communities" element={<AdminCommunityManagement />} />
             <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/admin/spam" element={<AdminSpamReports />} />
             <Route path="/admin/spam-management" element={<AdminSpamManagement />} />

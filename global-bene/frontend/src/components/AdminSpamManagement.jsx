@@ -303,7 +303,7 @@ const AdminSpamManagement = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{post.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{post.content}</p>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{post.content?.text || post.content || 'No content'}</p>
                         <div className="text-xs text-gray-500 mt-2">
                           Detected: {new Date(post.detectedAt).toLocaleString()} •
                           Reason: {post.spamReason}

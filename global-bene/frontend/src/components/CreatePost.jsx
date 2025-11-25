@@ -4,12 +4,13 @@ import { postService } from '../services/postService';
 export default function CreatePost({ onClose, onSuccess, communities, editPost }) {
   const [formData, setFormData] = useState({
     title: '',
-    content: '',
+    textContent: '',
     communityId: '',
-    type: 'text',
     linkUrl: '',
+    linkTitle: '',
   });
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const isEditing = !!editPost;
@@ -19,13 +20,20 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
     if (editPost) {
       setFormData({
         title: editPost.title || '',
-        content: editPost.content || '',
+        textContent: editPost.content?.text || editPost.content || '',
         communityId: editPost.community?._id || '',
-        type: editPost.type || 'text',
-        linkUrl: editPost.linkUrl || '',
+        linkUrl: editPost.content?.links?.[0]?.url || editPost.linkUrl || '',
+        linkTitle: editPost.content?.links?.[0]?.title || '',
       });
       setPostType(editPost.community ? 'community' : 'user');
       setCategory(editPost.category || 'general');
+
+      // Set image preview if editing
+      if (editPost.content?.images?.[0]?.secure_url) {
+        setImagePreview(editPost.content.images[0].secure_url);
+      } else if (editPost.imageUrl) {
+        setImagePreview(editPost.imageUrl);
+      }
     }
   }, [editPost]);
 
@@ -39,63 +47,72 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
     setError('');
 
     try {
+      // Build content object
+      const content = {};
+
+      // Add text content if provided
+      if (formData.textContent.trim()) {
+        content.text = formData.textContent.trim();
+      }
+
+      // Add image if provided
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append('image', imageFile);
+        // We'll handle image upload separately
+      }
+
+      // Add link if provided
+      if (formData.linkUrl.trim()) {
+        content.links = [{
+          url: formData.linkUrl.trim(),
+          title: formData.linkTitle.trim() || formData.linkUrl.trim()
+        }];
+      }
+
       let response;
       if (isEditing) {
         // Update existing post
-        if (formData.type === 'image') {
+        const updateData = {
+          title: formData.title,
+          content,
+          category,
+        };
+
+        if (imageFile) {
           const fd = new FormData();
           fd.append('title', formData.title);
-          fd.append('type', formData.type);
-          fd.append('content', formData.content || '');
+          fd.append('content', JSON.stringify(content));
           fd.append('category', category);
-          if (imageFile) fd.append('image', imageFile);
+          fd.append('image', imageFile);
           response = await postService.updatePost(editPost._id, fd);
-        } else if (formData.type === 'link') {
-          response = await postService.updatePost(editPost._id, {
-            title: formData.title,
-            type: formData.type,
-            linkUrl: formData.linkUrl,
-            content: '',
-            category,
-          });
         } else {
-          response = await postService.updatePost(editPost._id, {
-            title: formData.title,
-            type: 'text',
-            content: formData.content,
-            category,
-          });
+          response = await postService.updatePost(editPost._id, updateData);
         }
       } else {
         // Create new post
-        if (formData.type === 'image') {
+        const createData = {
+          title: formData.title,
+          content,
+          category,
+        };
+
+        if (postType === 'community' && formData.communityId) {
+          createData.communityId = formData.communityId;
+        }
+
+        if (imageFile) {
           const fd = new FormData();
           fd.append('title', formData.title);
+          fd.append('content', JSON.stringify(content));
+          fd.append('category', category);
           if (postType === 'community' && formData.communityId) {
             fd.append('communityId', formData.communityId);
           }
-          fd.append('type', formData.type);
-          fd.append('content', ''); // Always send content for backend validation
-          fd.append('category', category);
-          if (imageFile) fd.append('image', imageFile);
+          fd.append('image', imageFile);
           response = await postService.createPost(fd);
-        } else if (formData.type === 'link') {
-          response = await postService.createPost({
-            title: formData.title,
-            communityId: postType === 'community' ? formData.communityId : undefined,
-            type: formData.type,
-            linkUrl: formData.linkUrl,
-            content: '', // Always send content
-            category,
-          });
         } else {
-          response = await postService.createPost({
-            title: formData.title,
-            communityId: postType === 'community' ? formData.communityId : undefined,
-            type: 'text',
-            content: formData.content,
-            category,
-          });
+          response = await postService.createPost(createData);
         }
 
         // Check for spam warning that requires user confirmation
@@ -173,12 +190,9 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
               </div>
             )}
 
-            {/* Content type tabs */}
-            <div className="flex items-center gap-2 mb-2">
-              <button type="button" onClick={() => setFormData({ ...formData, type: 'text' })} className={`px-3 py-1.5 rounded ${formData.type === 'text' ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'}`}>Text</button>
-              <button type="button" onClick={() => setFormData({ ...formData, type: 'image' })} className={`px-3 py-1.5 rounded ${formData.type === 'image' ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'}`}>Image</button>
-              <button type="button" onClick={() => setFormData({ ...formData, type: 'link' })} className={`px-3 py-1.5 rounded ${formData.type === 'link' ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'}`}>Link</button>
-            </div>
+            {/* Combined Content Sections */}
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">You can add text, an image, and/or a link to your post (all optional except title)</p>
 
             {/* Community select - only if community post and not editing */}
             {postType === 'community' && !isEditing && (
@@ -235,54 +249,72 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
               />
             </div>
 
-            {formData.type === 'text' && (
+              {/* Text Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Content *
+                  Text Content (optional)
                 </label>
                 <textarea
-                  name="content"
-                  value={formData.content}
+                  name="textContent"
+                  value={formData.textContent}
                   onChange={handleChange}
-                  required
-                  rows={6}
+                  rows={4}
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
                   placeholder="What's on your mind?"
                 />
               </div>
-            )}
 
-            {formData.type === 'link' && (
+              {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Link URL *
+                  Image (optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    setImageFile(file);
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (e) => setImagePreview(e.target.result);
+                      reader.readAsDataURL(file);
+                    } else {
+                      setImagePreview(null);
+                    }
+                  }}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                {imagePreview && (
+                  <div className="mt-2">
+                    <img src={imagePreview} alt="Preview" className="max-w-full h-32 object-cover rounded-lg" />
+                  </div>
+                )}
+              </div>
+
+              {/* Link URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Link URL (optional)
                 </label>
                 <input
                   type="url"
                   name="linkUrl"
                   value={formData.linkUrl}
                   onChange={handleChange}
-                  required
-                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
                   placeholder="https://example.com"
                 />
-              </div>
-            )}
-
-            {formData.type === 'image' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Image {isEditing ? '(leave empty to keep current)' : '*'}
-                </label>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  required={!isEditing}
+                  type="text"
+                  name="linkTitle"
+                  value={formData.linkTitle}
+                  onChange={handleChange}
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Link title (optional)"
                 />
               </div>
-            )}
+            </div>
 
             <div className="flex justify-end space-x-3">
               <button

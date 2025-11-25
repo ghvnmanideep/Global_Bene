@@ -570,3 +570,143 @@ exports.toggleUserBan = async (req, res) => {
     res.status(500).json({ message: 'Server error toggling user ban' });
   }
 };
+
+// =================== ADMIN COMMUNITY MANAGEMENT ===================
+
+// Get all communities with pagination and search
+exports.getAllCommunities = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search = '', creator = '', isPrivate = '' } = req.query;
+    const skip = (page - 1) * limit;
+    let query = {};
+
+    if (search && search.trim()) {
+      const regex = new RegExp(search, 'i');
+      query.$or = [
+        { name: { $regex: regex } },
+        { displayName: { $regex: regex } },
+        { description: { $regex: regex } },
+      ];
+    }
+
+    if (creator) {
+      query.creator = creator;
+    }
+
+    if (isPrivate && isPrivate !== 'all') {
+      query.isPrivate = isPrivate === 'true';
+    }
+
+    const communities = await Community.find(query)
+      .populate('creator', 'username email')
+      .populate('moderators', 'username')
+      .sort({ memberCount: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Community.countDocuments(query);
+
+    res.json({
+      communities,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('Get all communities error:', err);
+    res.status(500).json({ message: 'Server error fetching communities' });
+  }
+};
+
+// Delete any community (admin only)
+exports.deleteCommunity = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+
+    // Delete all posts in the community
+    await Post.deleteMany({ community: id });
+
+    // Delete all comments on those posts
+    const posts = await Post.find({ community: id }).select('_id');
+    const postIds = posts.map(p => p._id);
+    await Comment.deleteMany({ post: { $in: postIds } });
+
+    // Get community creator before deletion for notification
+    const communityCreator = community.creator;
+
+    await Community.findByIdAndDelete(id);
+
+    // Send notification to community creator
+    if (communityCreator) {
+      const message = `Your community "${community.displayName}" has been deleted by an admin.`;
+      await createNotification(communityCreator, 'delete', message, req.user.id);
+    }
+
+    res.json({ message: 'Community deleted successfully' });
+  } catch (err) {
+    console.error('Delete community error:', err);
+    res.status(500).json({ message: 'Server error deleting community' });
+  }
+};
+
+// Update community settings (admin only)
+exports.updateCommunity = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { displayName, description, isPrivate, rules } = req.body;
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+
+    // Update allowed fields
+    if (displayName !== undefined) community.displayName = displayName;
+    if (description !== undefined) community.description = description;
+    if (isPrivate !== undefined) community.isPrivate = isPrivate;
+    if (rules !== undefined) community.rules = rules;
+
+    await community.save();
+
+    res.json({ message: 'Community updated successfully', community });
+  } catch (err) {
+    console.error('Update community error:', err);
+    res.status(500).json({ message: 'Server error updating community' });
+  }
+};
+
+// Remove member from community (admin only)
+exports.removeCommunityMember = async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+
+    const community = await Community.findById(id);
+    if (!community) {
+      return res.status(404).json({ message: 'Community not found' });
+    }
+
+    // Remove user from members and moderators
+    community.members = community.members.filter(member => member.toString() !== userId);
+    community.moderators = community.moderators.filter(mod => mod.toString() !== userId);
+    community.memberCount = community.members.length;
+
+    await community.save();
+
+    // Send notification to removed user
+    const message = `You have been removed from the community "${community.displayName}" by an admin.`;
+    await createNotification(userId, 'remove', message, req.user.id);
+
+    res.json({ message: 'Member removed successfully', community });
+  } catch (err) {
+    console.error('Remove community member error:', err);
+    res.status(500).json({ message: 'Server error removing member' });
+  }
+};

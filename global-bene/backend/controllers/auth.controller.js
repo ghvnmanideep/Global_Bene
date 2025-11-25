@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
+const { logActivity } = require('../utils/logActivity.utils');
 
 
 // Initialize Google OAuth2 client
@@ -46,6 +47,9 @@ const strongPassword = (pw) =>
 // Utility to generate tokens
 const generateToken = () => crypto.randomBytes(20).toString('hex');
 
+// Generate 6-digit OTP
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
 // JWT token generator
 const createAccessToken = (user) =>
   jwt.sign({ id: user._id, username: user.username, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '15m' });
@@ -76,12 +80,22 @@ exports.register = async (req, res) => {
     const user = new User({ username: trimmedUsername, email: trimmedEmail, passwordHash: password, role: userRole });
     await user.save();
 
-    // Generate email verification token
-    const emailToken = generateToken();
-    user.emailToken = emailToken;
+    // Log registration activity
+    await logActivity(
+      user._id,
+      "register",
+      `User registered with email ${trimmedEmail}`,
+      req,
+      null,
+      null
+    );
+
+    // Generate email verification OTP
+    const otp = generateOTP();
+    user.otpCode = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
     await user.save();
 
-    const verifyLink = `${process.env.FRONTEND_URL}/verify/${emailToken}`;
     const html = `
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
         <tr>
@@ -103,20 +117,16 @@ exports.register = async (req, res) => {
               </tr>
               <tr>
                 <td style="padding:28px 32px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#e5e7eb;">
-                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Hi ${username}, confirm your email</h1>
+                  <h1 style="margin:0 0 12px;font-size:20px;line-height:28px;font-weight:700;color:#f3f4f6;">Hi ${username}, verify your email</h1>
                   <p style="margin:0 0 18px;font-size:14px;line-height:22px;color:#cbd5e1;">
-                    Thanks for signing up for Global Bene. Please verify your email address to complete your registration and keep your account secure.
+                    Thanks for signing up for Global Bene. Please verify your email address to complete your registration.
                   </p>
                   <div style="text-align:center;margin:26px 0 8px;">
-                    <a href="${verifyLink}" style="display:inline-block;background:#f97316;color:#0b1220;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;border:1px solid #fb923c;">
-                      Verify Email
-                    </a>
+                    <div style="display:inline-block;background:#f97316;color:#0b1220;padding:16px 24px;border-radius:12px;font-weight:700;font-size:24px;letter-spacing:4px;border:1px solid #fb923c;">
+                      ${otp}
+                    </div>
                   </div>
-                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">This link expires in 24 hours.</p>
-                  <div style="margin-top:22px;padding:14px;border:1px solid #1f2937;border-radius:10px;background:#0f172a;color:#94a3b8;font-size:12px;">
-                    If the button doesn't work, copy and paste this URL into your browser:<br />
-                    <span style="color:#e5e7eb;word-break:break-all;">${verifyLink}</span>
-                  </div>
+                  <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;text-align:center;">This code expires in 10 minutes. Do not share it with anyone.</p>
                 </td>
               </tr>
               <tr>
@@ -129,7 +139,7 @@ exports.register = async (req, res) => {
         </tr>
       </table>`;
 
-    await sendMail({ to: email, subject: 'Confirm your email • Global Bene', html });
+    await sendMail({ to: email, subject: 'Verify your email • Global Bene', html });
 
     res.status(201).json({ message: 'Registered successfully. Check your email.' });
   } catch (err) {
@@ -138,16 +148,27 @@ exports.register = async (req, res) => {
   }
 };
 
-// --------- EMAIL VERIFICATION ---------
-exports.verifyEmail = async (req, res) => {
+// --------- OTP VERIFICATION ---------
+exports.verifyOtp = async (req, res) => {
   try {
-    const { token } = req.params;
-    const user = await User.findOne({ emailToken: token });
-    if (!user) return res.status(400).json({ message: 'Invalid token' });
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email, otpCode: otp, otpExpires: { $gt: Date.now() } });
+    if (!user) return res.status(400).json({ message: 'Invalid or expired OTP' });
 
     user.emailVerified = true;
-    user.emailToken = undefined;
+    user.otpCode = undefined;
+    user.otpExpires = undefined;
     await user.save();
+
+    // Log email verification activity
+    await logActivity(
+      user._id,
+      "verify-otp",
+      `User verified email with OTP`,
+      req,
+      null,
+      null
+    );
 
     const html = `
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
@@ -194,7 +215,7 @@ exports.verifyEmail = async (req, res) => {
     await sendMail({ to: user.email, subject: 'Welcome to Global Bene!', html });
     res.json({ message: 'Email verified successfully' });
   } catch (err) {
-    console.error('Email verify error:', err);
+    console.error('OTP verify error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -228,6 +249,16 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid username or password' });
 
     const token = createAccessToken(user);
+
+    // Log login activity
+    await logActivity(
+      user._id,
+      "login",
+      `User logged in successfully`,
+      req,
+      null,
+      null
+    );
 
     // Send welcome email on successful login only for non-admin users
     if (user.role !== 'admin') {
@@ -302,6 +333,16 @@ exports.forgotPassword = async (req, res) => {
     user.resetTokenExpires = Date.now() + 3600000; // 1 hour expiry
     await user.save();
 
+    // Log password reset request
+    await logActivity(
+      user._id,
+      "reset-password",
+      `User requested password reset`,
+      req,
+      null,
+      null
+    );
+
     const resetLink = `${process.env.FRONTEND_URL}/reset/${resetToken}`;
     const resetHtml = `
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
@@ -356,6 +397,16 @@ exports.resetPassword = async (req, res) => {
     user.resetTokenExpires = undefined;
     await user.save();
 
+    // Log password change activity
+    await logActivity(
+      user._id,
+      "change-password",
+      `User changed password via reset link`,
+      req,
+      null,
+      null
+    );
+
     const confirmHtml = `
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#0f172a;padding:32px 0;">
         <tr>
@@ -383,7 +434,7 @@ exports.resetPassword = async (req, res) => {
 // --------- GET MY PROFILE ---------
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-passwordHash -resetToken -emailToken');
+    const user = await User.findById(req.user._id).select('-passwordHash -resetToken -emailToken');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
@@ -420,6 +471,16 @@ exports.followUser = async (req, res) => {
     await currentUser.save();
     await userToFollow.save();
 
+    // Log follow activity
+    await logActivity(
+      currentUserId,
+      "follow-user",
+      `User followed ${userToFollow.username}`,
+      req,
+      "user",
+      userId
+    );
+
     res.json({ message: 'User followed successfully' });
   } catch (err) {
     console.error('Follow user error:', err);
@@ -445,6 +506,16 @@ exports.unfollowUser = async (req, res) => {
 
     await currentUser.save();
     await userToUnfollow.save();
+
+    // Log unfollow activity
+    await logActivity(
+      currentUserId,
+      "unfollow-user",
+      `User unfollowed ${userToUnfollow.username}`,
+      req,
+      "user",
+      userId
+    );
 
     res.json({ message: 'User unfollowed successfully' });
   } catch (err) {
@@ -502,6 +573,17 @@ exports.updateProfile = async (req, res) => {
     };
 
     await user.save();
+
+    // Log profile update activity
+    await logActivity(
+      req.user._id,
+      "update-profile",
+      `User updated profile information`,
+      req,
+      null,
+      null
+    );
+
     res.json({ message: 'Profile updated', profile: user.profile, username: user.username });
   } catch (err) {
     console.error('Update profile error:', err);
@@ -523,6 +605,17 @@ exports.changePassword = async (req, res) => {
     user.passwordHash = newPassword;
     user.refreshTokens = [];
     await user.save();
+
+    // Log password change activity
+    await logActivity(
+      req.user._id,
+      "change-password",
+      `User changed password`,
+      req,
+      null,
+      null
+    );
+
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error('Change password error:', err);
@@ -563,6 +656,16 @@ exports.googleAuth = async (req, res) => {
 
     // Generate JWT
     const accessToken = createAccessToken(user);
+
+    // Log Google login activity
+    await logActivity(
+      user._id,
+      "login",
+      `User logged in with Google`,
+      req,
+      null,
+      null
+    );
 
     // Send welcome email on successful Google sign-in only for non-admin users
     if (user.role !== 'admin') {

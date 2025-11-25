@@ -18,6 +18,8 @@ const userSchema = new mongoose.Schema(
     emailToken: String,
     resetToken: String,
     resetTokenExpires: Date,
+    otpCode: String,
+    otpExpires: Date,
     refreshTokens: [refreshTokenSchema],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -25,6 +27,18 @@ const userSchema = new mongoose.Schema(
     isBanned: { type: Boolean, default: false },
     bannedReason: String,
     bannedAt: Date,
+
+    // Recommendation-related fields
+    interests: [String], // normalized topics/skills/industries
+    preferredTags: [String], // tags the user often engages with or follows
+    recommendationOptOut: { type: Boolean, default: false }, // if user disables personalization
+
+    // Engagement summary fields
+    totalLikesGiven: { type: Number, default: 0 },
+    totalLikesReceived: { type: Number, default: 0 },
+    totalViews: { type: Number, default: 0 },
+    totalSaves: { type: Number, default: 0 },
+
     profile: {
       bio: String,
       avatarUrl: String,

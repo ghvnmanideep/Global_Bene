@@ -118,7 +118,7 @@ const AdminSpamReports = () => {
                     {post.type}
                   </span>
                 </div>
-                <p className="text-gray-700 line-clamp-3 mb-3">{post.content}</p>
+                <p className="text-gray-700 line-clamp-3 mb-3">{post.content?.text || post.content || 'No content'}</p>
 
                 {/* Spam Reports Details */}
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">

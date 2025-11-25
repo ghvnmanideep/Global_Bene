@@ -23,11 +23,13 @@ exports.sendContactEmail = async (req, res) => {
       <p>${description.replace(/\n/g, '<br>')}</p>
     `;
 
-    // Send email to admin
+    // Send email to admin from user's email (display only, actual sender is Gmail account)
+    const fromAddress = user ? `"${userName} <${userEmail}>"` : process.env.EMAIL_FROM;
     await sendMail(
-      process.env.ADMIN_EMAIL,
+      'manideepghvn@gmail.com',
       `Contact Form: ${title}`,
-      wrapEmail(`New Contact Message from ${userName}`, emailContent)
+      wrapEmail(`New Contact Message from ${userName}`, emailContent),
+      fromAddress
     );
 
     res.json({ message: 'Message sent successfully' });

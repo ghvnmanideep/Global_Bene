@@ -13,8 +13,8 @@ export default function Register() {
     setMsg('');
     try {
       const { data } = await authService.register(form);
-      setMsg('✅ Registration successful! Please verify your email.');
-      setTimeout(() => navigate('/login'), 2000);
+      setMsg('✅ Registration successful! Please check your email for OTP.');
+      setTimeout(() => navigate('/verify'), 2000);
     } catch (err) {
       setMsg(err.response?.data?.message || 'Error registering. Please try again.');
     }

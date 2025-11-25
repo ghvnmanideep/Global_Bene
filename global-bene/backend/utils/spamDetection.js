@@ -1,6 +1,8 @@
 const axios = require('axios');
 
-const SPAM_API_URL = 'https://spam-toxicity-api-latest.onrender.com/predict';
+// Try local Python API first, fallback to external API
+const LOCAL_SPAM_API_URL = 'http://localhost:8001/predict';
+const EXTERNAL_SPAM_API_URL = 'https://spam-toxicity-api-latest.onrender.com/predict';
 
 // Keywords associated with promotional spam and scams
 const PROMOTIONAL_KEYWORDS = [
@@ -68,20 +70,24 @@ const checkPromotionalSpam = (text) => {
 };
 
 const checkSpam = async (text) => {
+  // Try local API first
   try {
-    const response = await axios.post(SPAM_API_URL, {
+    const response = await axios.post(LOCAL_SPAM_API_URL, {
       text: text
     }, {
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 5000 // 5 second timeout for local API
     });
 
-    // The API returns different structure - use spam_detection.label_probs.spam or toxicity_detection.confidence
+    console.log('Using local spam detection API');
+
+    // Local API structure: spam_detection.label_probs.spam and toxicity_detection.confidence
     const spamConfidence = response.data.spam_detection?.label_probs?.spam || 0;
     const toxicityConfidence = response.data.toxicity_detection?.confidence || 0;
 
-    // Use the higher confidence score, but prioritize toxicity detection for spam classification
+    // Use the higher confidence score
     let confidence = Math.max(spamConfidence, toxicityConfidence);
 
     // Check for promotional spam
@@ -110,25 +116,72 @@ const checkSpam = async (text) => {
       spamStatus,
       reason
     };
-  } catch (error) {
-    console.error('Spam detection API error:', error.message);
-    // Even if API fails, still check for promotional spam
-    const promoCheck = checkPromotionalSpam(text);
-    if (promoCheck.isPromotionalSpam) {
+  } catch (localError) {
+    console.log('Local spam API unavailable, trying external API:', localError.message);
+
+    // Fallback to external API
+    try {
+      const response = await axios.post(EXTERNAL_SPAM_API_URL, {
+        text: text
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Using external spam detection API');
+
+      // External API structure
+      const spamConfidence = response.data.spam_detection?.label_probs?.spam || 0;
+      const toxicityConfidence = response.data.toxicity_detection?.confidence || 0;
+
+      let confidence = Math.max(spamConfidence, toxicityConfidence);
+
+      const promoCheck = checkPromotionalSpam(text);
+      if (promoCheck.isPromotionalSpam) {
+        confidence = Math.max(confidence, promoCheck.confidence);
+      }
+
+      let spamStatus = 'not_spam';
+      let isSpam = false;
+      let reason = response.data.toxicity_detection?.label === 'spam' ? 'Detected as spam/toxic content by AI' : 'Detected as spam by AI';
+
+      if (confidence > 0.8) {
+        spamStatus = 'spam';
+        isSpam = true;
+        if (promoCheck.isPromotionalSpam) {
+          reason = promoCheck.reason;
+        }
+      } else if (confidence >= 0.6) {
+        spamStatus = 'might_be_spam';
+      }
+
       return {
-        isSpam: true,
-        confidence: promoCheck.confidence,
-        spamStatus: 'spam',
-        reason: promoCheck.reason
+        isSpam,
+        confidence,
+        spamStatus,
+        reason
+      };
+    } catch (externalError) {
+      console.error('Both spam detection APIs failed:', externalError.message);
+      // Even if APIs fail, still check for promotional spam
+      const promoCheck = checkPromotionalSpam(text);
+      if (promoCheck.isPromotionalSpam) {
+        return {
+          isSpam: true,
+          confidence: promoCheck.confidence,
+          spamStatus: 'spam',
+          reason: promoCheck.reason
+        };
+      }
+      // If APIs fail and no promotional spam, don't block the post
+      return {
+        isSpam: false,
+        confidence: 0,
+        spamStatus: 'not_spam',
+        reason: 'APIs unavailable'
       };
     }
-    // If API fails and no promotional spam, don't block the post
-    return {
-      isSpam: false,
-      confidence: 0,
-      spamStatus: 'not_spam',
-      reason: 'API unavailable'
-    };
   }
 };
 

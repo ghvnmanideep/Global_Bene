@@ -11,7 +11,7 @@ const { authRequired } = require('../middleware/auth.middleware');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/google', authController.googleAuth);
-router.get('/verify/:token', authController.verifyEmail);
+router.post('/verify-otp', authController.verifyOtp);
 router.post('/forgot', authController.forgotPassword);
 router.post('/reset/:token', authController.resetPassword);
 

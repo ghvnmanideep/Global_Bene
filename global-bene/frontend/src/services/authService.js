@@ -34,7 +34,7 @@ export const authService = {
   // Authentication
   register: (data) => api.post("/auth/register", data),
   login: (data) => api.post("/auth/login", data),
-  verifyEmail: (token) => api.get(`/auth/verify/${token}`),
+  verifyOtp: (data) => api.post('/auth/verify-otp', data),
   forgot: (email) => api.post("/auth/forgot", { email }),
   reset: (token, data) => api.post(`/auth/reset/${token}`, data),
 
@@ -55,6 +55,7 @@ export const authService = {
   searchUsers: (query) => api.get("/users/search", { params: { q: query } }),
   getUserById: (id) => api.get(`/users/${id}`),
   getUserComments: (userId) => api.get(`/users/${userId}/comments`),
+  getUserInteractionLogs: (userId) => api.get(`/activity-logs/my-activity-logs`),
   // Admin services
   admin: {
     // User management
@@ -80,6 +81,12 @@ export const authService = {
     restoreSpamPost: (id) => api.put(`/admin/spam-posts/${id}/restore`),
     getUserSpamPosts: (userId) => api.get(`/admin/users/${userId}/spam-posts`),
     toggleUserBan: (userId, data) => api.put(`/admin/users/${userId}/ban`, data),
+
+    // Community management
+    getAllCommunities: (params) => api.get("/admin/communities", { params }),
+    deleteCommunity: (communityId) => api.delete(`/admin/communities/${communityId}`),
+    updateCommunity: (communityId, data) => api.put(`/admin/communities/${communityId}`, data),
+    removeCommunityMember: (communityId, userId) => api.delete(`/admin/communities/${communityId}/members/${userId}`),
   },
 };
 

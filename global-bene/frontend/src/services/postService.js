@@ -57,8 +57,8 @@ export const postService = {
     }
     return api.put(`/posts/${id}`, data);
   },
-  votePost: (id, voteType) => api.post(`/posts/${id}/vote`, { voteType }),
-  removeVote: (id) => api.delete(`/posts/${id}/vote`),
+  votePost: (id, voteType) => api.post(`/votes/post/${id}/${voteType === 'upvote' ? 'up' : 'down'}`),
+  removeVote: (id) => api.post(`/votes/post/${id}/up`), // Use same endpoint for toggle
   toggleSavePost: (id) => api.post(`/posts/${id}/save`),
   deletePost: (id) => api.delete(`/posts/${id}`),
 };

@@ -1,5 +1,7 @@
 const UserInteractionLog = require('../models/userInteractionLog');
 const User = require('../models/user');
+const Post = require('../models/post');
+const Community = require('../models/community');
 
 // Get all interaction logs for AI team
 exports.getInteractionLogs = async (req, res) => {
@@ -238,4 +240,310 @@ const convertToCSV = (data) => {
   });
 
   return csvRows.join('\n');
+};
+
+// Get recommended posts for a user
+exports.getRecommendedPostsForUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user has opted out of recommendations
+    if (user.recommendationOptOut) {
+      return res.json({ posts: [], message: 'User has opted out of recommendations' });
+    }
+
+    // Try to get recommendations from advanced Python API
+    try {
+      const axios = require('axios');
+      const response = await axios.get(`http://localhost:8000/recommendations/${userId}`, { timeout: 5000 });
+      const data = response.data;
+
+      if (data.recommendations && data.recommendations.length > 0) {
+        // Get post IDs from recommendations
+        const postIds = data.recommendations.map(rec => rec.item_id);
+
+        // Fetch posts
+        const posts = await Post.find({ _id: { $in: postIds }, status: 'active' })
+          .populate('author', 'username')
+          .populate('community', 'name displayName')
+          .sort({ createdAt: -1 });
+
+        // Sort posts according to recommendation order
+        const postMap = {};
+        posts.forEach(post => {
+          postMap[post._id.toString()] = post;
+        });
+
+        const orderedPosts = postIds.map(id => postMap[id]).filter(p => p);
+
+        // Apply offset and limit
+        const paginatedPosts = orderedPosts.slice(offset, offset + limit);
+
+        return res.json({
+          posts: paginatedPosts,
+          total: orderedPosts.length,
+          limit: parseInt(limit),
+          offset: parseInt(offset),
+          source: data.source,
+          strategy: data.strategy
+        });
+      }
+    } catch (apiError) {
+      console.log('Advanced recommendation API not available, falling back to basic logic:', apiError.message);
+    }
+
+    // Fallback to basic recommendation logic
+    // Get user's interaction history
+    const userInteractions = await UserInteractionLog.find({
+      userId,
+      action: { $in: ['like_post', 'save_post', 'comment_post', 'view_post'] },
+      targetType: 'post'
+    }).sort({ timestamp: -1 }).limit(100);
+
+    // Extract preferred tags and topics from interactions
+    const interactedPostIds = userInteractions.map(log => log.targetId);
+    const interactedPosts = await Post.find({ _id: { $in: interactedPostIds } });
+
+    const preferredTags = new Set();
+    const preferredTopics = new Set();
+
+    interactedPosts.forEach(post => {
+      post.tags.forEach(tag => preferredTags.add(tag));
+      post.topics.forEach(topic => preferredTopics.add(topic));
+    });
+
+    // Also consider user's explicitly set interests
+    user.interests.forEach(interest => preferredTags.add(interest));
+    user.preferredTags.forEach(tag => preferredTags.add(tag));
+
+    // Build recommendation query
+    const tagArray = Array.from(preferredTags);
+    const topicArray = Array.from(preferredTopics);
+
+    let query = {
+      status: 'active',
+      author: { $ne: userId } // Don't recommend user's own posts
+    };
+
+    // Exclude posts user has already interacted with heavily
+    const heavilyInteractedPostIds = userInteractions
+      .filter(log => ['like_post', 'save_post'].includes(log.action))
+      .map(log => log.targetId);
+
+    if (heavilyInteractedPostIds.length > 0) {
+      query._id = { $nin: heavilyInteractedPostIds };
+    }
+
+    // Score-based sorting with tag/topic matching
+    let posts = [];
+
+    if (tagArray.length > 0 || topicArray.length > 0) {
+      // First try to find posts with matching tags/topics
+      const tagMatchQuery = { ...query };
+      if (tagArray.length > 0) {
+        tagMatchQuery.tags = { $in: tagArray };
+      }
+      if (topicArray.length > 0) {
+        tagMatchQuery.topics = { $in: topicArray };
+      }
+
+      posts = await Post.find(tagMatchQuery)
+        .populate('author', 'username')
+        .populate('community', 'name displayName')
+        .sort({ score: -1, createdAt: -1 })
+        .limit(limit * 2); // Get more to filter
+    }
+
+    // If not enough personalized results, fall back to trending posts
+    if (posts.length < limit) {
+      const trendingQuery = {
+        ...query,
+        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
+      };
+
+      const trendingPosts = await Post.find(trendingQuery)
+        .populate('author', 'username')
+        .populate('community', 'name displayName')
+        .sort({ score: -1, viewCount: -1 })
+        .limit(limit - posts.length);
+
+      posts = [...posts, ...trendingPosts];
+    }
+
+    // Remove duplicates and apply offset/limit
+    const uniquePosts = posts.filter((post, index, self) =>
+      index === self.findIndex(p => p._id.toString() === post._id.toString())
+    );
+
+    const paginatedPosts = uniquePosts.slice(offset, offset + limit);
+
+    res.json({
+      posts: paginatedPosts,
+      total: uniquePosts.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (err) {
+    console.error('Get recommended posts error:', err);
+    res.status(500).json({ message: 'Server error fetching recommended posts' });
+  }
+};
+
+// Get recommended communities for a user
+exports.getRecommendedCommunitiesForUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 10, offset = 0 } = req.query;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.recommendationOptOut) {
+      return res.json({ communities: [], message: 'User has opted out of recommendations' });
+    }
+
+    // Get communities user is already following
+    const followingCommunityIds = await UserInteractionLog.distinct('targetId', {
+      userId,
+      action: 'join_community',
+      targetType: 'community'
+    });
+
+    // Get user's interaction history with communities
+    const communityInteractions = await UserInteractionLog.find({
+      userId,
+      targetType: 'community',
+      action: { $in: ['join_community', 'view_community'] }
+    });
+
+    // Extract preferred tags from community interactions
+    const interactedCommunityIds = communityInteractions.map(log => log.targetId);
+    const interactedCommunities = await Community.find({ _id: { $in: interactedCommunityIds } });
+
+    const preferredTags = new Set();
+    interactedCommunities.forEach(community => {
+      community.tags.forEach(tag => preferredTags.add(tag));
+    });
+
+    // Also consider user's interests
+    user.interests.forEach(interest => preferredTags.add(interest));
+
+    // Build recommendation query
+    const tagArray = Array.from(preferredTags);
+
+    let query = {
+      _id: { $nin: followingCommunityIds },
+      isPrivate: false
+    };
+
+    let communities = [];
+
+    if (tagArray.length > 0) {
+      // Find communities with matching tags
+      query.tags = { $in: tagArray };
+
+      communities = await Community.find(query)
+        .sort({ recommendationScore: -1, memberCount: -1 })
+        .limit(limit * 2);
+    }
+
+    // Fallback to popular communities
+    if (communities.length < limit) {
+      const popularQuery = {
+        _id: { $nin: followingCommunityIds },
+        isPrivate: false
+      };
+
+      const popularCommunities = await Community.find(popularQuery)
+        .sort({ memberCount: -1, recommendationScore: -1 })
+        .limit(limit - communities.length);
+
+      communities = [...communities, ...popularCommunities];
+    }
+
+    // Remove duplicates and apply pagination
+    const uniqueCommunities = communities.filter((community, index, self) =>
+      index === self.findIndex(c => c._id.toString() === community._id.toString())
+    );
+
+    const paginatedCommunities = uniqueCommunities.slice(offset, offset + limit);
+
+    res.json({
+      communities: paginatedCommunities,
+      total: uniqueCommunities.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (err) {
+    console.error('Get recommended communities error:', err);
+    res.status(500).json({ message: 'Server error fetching recommended communities' });
+  }
+};
+
+// Get recommended users to follow
+exports.getRecommendedUsersToFollow = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 10, offset = 0 } = req.query;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.recommendationOptOut) {
+      return res.json({ users: [], message: 'User has opted out of recommendations' });
+    }
+
+    // Get users already following
+    const followingIds = user.following.map(id => id.toString());
+    followingIds.push(userId.toString()); // Exclude self
+
+    // Get users who follow similar people or have similar interests
+    const similarUsers = await User.find({
+      _id: { $nin: followingIds },
+      interests: { $in: user.interests },
+      isBanned: false
+    })
+    .select('username profile totalLikesReceived totalPosts')
+    .sort({ totalLikesReceived: -1, totalPosts: -1 })
+    .limit(limit);
+
+    // If not enough similar users, get active users
+    if (similarUsers.length < limit) {
+      const activeUsers = await User.find({
+        _id: { $nin: followingIds },
+        isBanned: false,
+        totalPosts: { $gt: 0 }
+      })
+      .select('username profile totalLikesReceived totalPosts')
+      .sort({ totalLikesReceived: -1, totalPosts: -1 })
+      .limit(limit - similarUsers.length);
+
+      similarUsers.push(...activeUsers);
+    }
+
+    const paginatedUsers = similarUsers.slice(offset, offset + limit);
+
+    res.json({
+      users: paginatedUsers,
+      total: similarUsers.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+  } catch (err) {
+    console.error('Get recommended users error:', err);
+    res.status(500).json({ message: 'Server error fetching recommended users' });
+  }
 };
