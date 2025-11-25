@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStats();
@@ -99,43 +101,43 @@ const AdminDashboard = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <button
-            onClick={() => window.location.href = '/admin/users'}
+            onClick={() => navigate('/admin/users')}
             className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Users
           </button>
           <button
-            onClick={() => window.location.href = '/admin/posts'}
+            onClick={() => navigate('/admin/posts')}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Posts
           </button>
           <button
-            onClick={() => window.location.href = '/admin/communities'}
+            onClick={() => navigate('/admin/communities')}
             className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Communities
           </button>
           <button
-            onClick={() => window.location.href = '/admin/notifications'}
+            onClick={() => navigate('/admin/notifications')}
             className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Send Notifications
           </button>
           <button
-            onClick={() => window.location.href = '/admin/spam'}
+            onClick={() => navigate('/admin/spam')}
             className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             View Reported Posts
           </button>
           <button
-            onClick={() => window.location.href = '/admin/spam-management'}
+            onClick={() => navigate('/admin/spam-management')}
             className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Spam Management
           </button>
           <button
-            onClick={() => window.location.href = '/admin/analytics'}
+            onClick={() => navigate('/admin/analytics')}
             className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Analytics Dashboard
