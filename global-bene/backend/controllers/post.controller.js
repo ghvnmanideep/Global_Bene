@@ -21,7 +21,7 @@ const {
 // Create a new post
 exports.createPost = async (req, res) => {
   try {
-    const { title, content, communityId, tags = [] } = req.body;
+    const { title, content, communityId, tags = [], category = 'general' } = req.body;
     const userId = req.user.id;
 
     if (!title || title.trim() === '') {
@@ -104,6 +104,7 @@ exports.createPost = async (req, res) => {
       author: userId,
       community: communityId || undefined,
       tags: tags.filter(tag => tag && typeof tag === 'string').map(tag => tag.toLowerCase().trim()),
+      category: category,
       tagSource: tags.length > 0 ? 'manual' : 'auto',
       status: 'active',
       spamStatus: 'not_spam',

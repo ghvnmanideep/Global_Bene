@@ -95,6 +95,7 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
           title: formData.title,
           content,
           category,
+          tags: [], // Backend expects tags array
         };
 
         if (postType === 'community' && formData.communityId) {
