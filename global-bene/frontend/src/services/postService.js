@@ -1,3 +1,4 @@
+import axios from 'axios';
 import axiosInstance from '../utils/axiosinstance';
 
 // Create authenticated API instance

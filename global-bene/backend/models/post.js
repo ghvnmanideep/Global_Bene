@@ -79,6 +79,8 @@ const postSchema = new mongoose.Schema(
 postSchema.index({ author: 1 });
 postSchema.index({ community: 1 });
 postSchema.index({ score: -1 });
+postSchema.index({ rankingScore: -1 }); 
+postSchema.index({ hotScore: -1 }); // For hot posts
 postSchema.index({ createdAt: -1 });
 postSchema.index({ tags: 1 });
 postSchema.index({ topics: 1 });
@@ -86,6 +88,7 @@ postSchema.index({ viewCount: -1 });
 postSchema.index({ likeCount: -1 });
 postSchema.index({ commentCount: -1 });
 postSchema.index({ saveCount: -1 });
+postSchema.index({ status: 1 }); // For filtering active posts
 
 // Compound indexes for recommendation and search
 postSchema.index({ tags: 1, createdAt: -1 });

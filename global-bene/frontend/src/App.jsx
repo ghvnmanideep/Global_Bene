@@ -1,38 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import Home from './components/Home';
-import Login from './components/Login';
-import Register from './components/Register';
-import VerifyEmail from './components/VerifyEmail';
-import Profile from './components/Profile';
-import EditProfile from './components/EditProfile';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import Logout from './components/Logout';
-import ProtectedRoute from './components/ProtectedRoute'
-import Dashboard from './components/Dashboard';
-import CommunityList from './components/CommunityList';
-import Search from './components/Search';
-import CommunityDetail from './components/CommunityDetail';
-import EditCommunity from './components/EditCommunity';
-import PostDetail from './components/PostDetail';
-import CreatePost from './components/CreatePost';
-import CreateCommunity from './components/CreateCommunity';
-import UserCommunities from './components/UserCommunities';
-import ContactUs from './components/ContactUs';
-import GLogin from './components/GLogin';
-import AdminUserManagement from './components/AdminUserManagement';
-import AdminPostManagement from './components/AdminPostManagement';
-import AdminNotifications from './components/AdminNotifications';
-import AdminSpamReports from './components/AdminSpamReports';
-import AdminSpamManagement from './components/AdminSpamManagement';
-import AdminCommunityManagement from './components/AdminCommunityManagement';
-import AdminDashboard from './components/AdminDashboard';
-import AdminAnalytics from './components/AdminAnalytics';
 import { communityService } from './services/communityService';
 
-import Notifications from './components/Notifications';
-import Header from './components/Header';
+// Lazy load components for better performance
+const Home = lazy(() => import('./components/Home'));
+const Login = lazy(() => import('./components/Login'));
+const Register = lazy(() => import('./components/Register'));
+const VerifyEmail = lazy(() => import('./components/VerifyEmail'));
+const Profile = lazy(() => import('./components/Profile'));
+const EditProfile = lazy(() => import('./components/EditProfile'));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const Logout = lazy(() => import('./components/Logout'));
+const ProtectedRoute = lazy(() => import('./components/ProtectedRoute'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const CommunityList = lazy(() => import('./components/CommunityList'));
+const Search = lazy(() => import('./components/Search'));
+const CommunityDetail = lazy(() => import('./components/CommunityDetail'));
+const EditCommunity = lazy(() => import('./components/EditCommunity'));
+const PostDetail = lazy(() => import('./components/PostDetail'));
+const CreatePost = lazy(() => import('./components/CreatePost'));
+const CreateCommunity = lazy(() => import('./components/CreateCommunity'));
+const UserCommunities = lazy(() => import('./components/UserCommunities'));
+const ContactUs = lazy(() => import('./components/ContactUs'));
+const GLogin = lazy(() => import('./components/GLogin'));
+const AdminUserManagement = lazy(() => import('./components/AdminUserManagement'));
+const AdminPostManagement = lazy(() => import('./components/AdminPostManagement'));
+const AdminNotifications = lazy(() => import('./components/AdminNotifications'));
+const AdminSpamReports = lazy(() => import('./components/AdminSpamReports'));
+const AdminSpamManagement = lazy(() => import('./components/AdminSpamManagement'));
+const AdminCommunityManagement = lazy(() => import('./components/AdminCommunityManagement'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
+const Notifications = lazy(() => import('./components/Notifications'));
+
+// Loading component
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+);
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
@@ -213,53 +220,55 @@ export default function App() {
               <div className="w-6"></div> {/* Spacer for centering */}
             </header>
           )}
-          <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home darkMode={darkMode} />} />
-          <Route path="/home" element={<Home darkMode={darkMode} />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot" element={<ForgotPassword />} />
-          <Route path="/reset/:token" element={<ResetPassword />} />
-          <Route path="/verify" element={<VerifyEmail />} />
-          <Route path="/auth/callback" element={<GLogin />} />
-          <Route path="/communities" element={<CommunityList />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/contact" element={<ContactUs darkMode={darkMode} />} />
-          <Route path="/community/:id" element={<CommunityDetail />} />
-          <Route path="/community/:id/edit" element={<ProtectedRoute><EditCommunity /></ProtectedRoute>} />
-          <Route path="/post/:id" element={<PostDetail />} />
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Home darkMode={darkMode} />} />
+              <Route path="/home" element={<Home darkMode={darkMode} />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot" element={<ForgotPassword />} />
+              <Route path="/reset/:token" element={<ResetPassword />} />
+              <Route path="/verify" element={<VerifyEmail />} />
+              <Route path="/auth/callback" element={<GLogin />} />
+              <Route path="/communities" element={<CommunityList />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/contact" element={<ContactUs darkMode={darkMode} />} />
+              <Route path="/community/:id" element={<CommunityDetail />} />
+              <Route path="/community/:id/edit" element={<ProtectedRoute><EditCommunity /></ProtectedRoute>} />
+              <Route path="/post/:id" element={<PostDetail />} />
 
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/analytics" element={<AdminAnalytics />} />
-            <Route path="/admin/users" element={<AdminUserManagement />} />
-            <Route path="/admin/posts" element={<AdminPostManagement />} />
-            <Route path="/admin/communities" element={<AdminCommunityManagement />} />
-            <Route path="/admin/notifications" element={<AdminNotifications />} />
-            <Route path="/admin/spam" element={<AdminSpamReports />} />
-            <Route path="/admin/spam-management" element={<AdminSpamManagement />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/profile/:id" element={<Profile />} />
-            <Route path="/edit-profile" element={<EditProfile />} />
-            <Route path="/logout" element={<Logout />} />
-            <Route path="/my-communities" element={<UserCommunities />} />
-            <Route path="/create-post" element={<CreatePost communities={communities} onClose={() => window.history.back()} onSuccess={() => window.location.href = '/dashboard'} />} />
-            <Route path="/create-community" element={<CreateCommunity onClose={() => window.history.back()} onSuccess={() => window.location.href = '/communities'} />} />
-          </Route>
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/users" element={<AdminUserManagement />} />
+                <Route path="/admin/posts" element={<AdminPostManagement />} />
+                <Route path="/admin/communities" element={<AdminCommunityManagement />} />
+                <Route path="/admin/notifications" element={<AdminNotifications />} />
+                <Route path="/admin/spam" element={<AdminSpamReports />} />
+                <Route path="/admin/spam-management" element={<AdminSpamManagement />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:id" element={<Profile />} />
+                <Route path="/edit-profile" element={<EditProfile />} />
+                <Route path="/logout" element={<Logout />} />
+                <Route path="/my-communities" element={<UserCommunities />} />
+                <Route path="/create-post" element={<CreatePost communities={communities} onClose={() => window.history.back()} onSuccess={() => window.location.href = '/dashboard'} />} />
+                <Route path="/create-community" element={<CreateCommunity onClose={() => window.history.back()} onSuccess={() => window.location.href = '/communities'} />} />
+              </Route>
 
-          {/* 404 Fallback */}
-          <Route path="*" element={
-            <div className="flex flex-col items-center justify-center h-[70vh] text-center p-4">
-              <h1 className="text-6xl font-bold text-red-500 mb-4">404</h1>
-              <p className="mb-4">Page Not Found</p>
-              <Link to="/" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Go Home</Link>
-            </div>
-          } />
-          </Routes>
+              {/* 404 Fallback */}
+              <Route path="*" element={
+                <div className="flex flex-col items-center justify-center h-[70vh] text-center p-4">
+                  <h1 className="text-6xl font-bold text-red-500 mb-4">404</h1>
+                  <p className="mb-4">Page Not Found</p>
+                  <Link to="/" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Go Home</Link>
+                </div>
+              } />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </BrowserRouter>
