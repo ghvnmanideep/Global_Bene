@@ -142,45 +142,7 @@ docker run -d -p 5000:5000 globalbene-backend
 docker run -d -p 80:80 globalbene-frontend
 ```
 
-## ⚙️ Environment Configuration
 
-### Backend (.env)
-```env
-# Server
-PORT=5000
-NODE_ENV=production
-
-# Database
-MONGO_URI=mongodb://admin:password@mongodb:27017/globalbene
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key
-ACCESS_TOKEN_SECRET=your-access-token-secret
-
-# Email
-EMAIL_USER=your-email@gmail.com
-EMAIL_APPPASS=your-app-password
-EMAIL_FROM="GlobalBene <your-email@gmail.com>"
-
-# OAuth
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=https://yourdomain.com/auth/google/callback
-
-# Cloud Storage
-CLOUDINARY_API_KEY=your-cloudinary-key
-CLOUDINARY_API_SECRET=your-cloudinary-secret
-CLOUDINARY_CLOUD_NAME=your-cloudinary-name
-
-# Admin (for seeding)
-ADMIN_USERNAME=admin
-ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=secure-admin-password
-```
-
-### Frontend (.env)
-```env
-VITE_API_URL=https://your-api-domain.com/api
 ```
 
 ## 📊 Default Admin Credentials
