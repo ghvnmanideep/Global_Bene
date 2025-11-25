@@ -28,6 +28,7 @@ import AdminSpamReports from './components/AdminSpamReports';
 import AdminSpamManagement from './components/AdminSpamManagement';
 import AdminCommunityManagement from './components/AdminCommunityManagement';
 import AdminDashboard from './components/AdminDashboard';
+import AdminAnalytics from './components/AdminAnalytics';
 import { communityService } from './services/communityService';
 
 import Notifications from './components/Notifications';
@@ -233,6 +234,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
             <Route path="/admin/users" element={<AdminUserManagement />} />
             <Route path="/admin/posts" element={<AdminPostManagement />} />
             <Route path="/admin/communities" element={<AdminCommunityManagement />} />

@@ -134,6 +134,12 @@ const AdminDashboard = () => {
           >
             Spam Management
           </button>
+          <button
+            onClick={() => window.location.href = '/admin/analytics'}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Analytics Dashboard
+          </button>
         </div>
       </div>
     </div>

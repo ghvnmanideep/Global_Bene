@@ -17,7 +17,9 @@
     "build": "echo 'No build step required for Node.js backend'",
     "lint": "echo 'Add linting if needed'",
     "seed": "node scripts/seedPosts.js",
-    "seed-admin": "node scripts/seedAdmin.js"
+    "seed-admin": "node scripts/seedAdmin.js",
+    "render-postbuild": "echo 'Render post-build step completed'",
+    "check-health": "curl -f http://localhost:$PORT/health || exit 1"
   },
   "keywords": [],
   "dependencies": {
@@ -36,6 +38,8 @@
     "helmet": "^8.1.0",
     "jest": "^30.2.0",
     "jsonwebtoken": "^9.0.2",
+    "mixpanel": "^0.19.1",
+    "mixpanel-browser": "^2.72.0",
     "mongoose": "^8.19.2",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",

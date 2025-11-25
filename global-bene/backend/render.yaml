@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: global-bene-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # Set this in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true
+      - key: MIXPANEL_TOKEN
+        sync: false # Set this in Render dashboard
+      - key: FRONTEND_URL
+        sync: false # Set this in Render dashboard
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APPPASS
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+    healthCheckPath: /health
+    disk:
+      name: global-bene-data
+      mountPath: /data
+      sizeGB: 1

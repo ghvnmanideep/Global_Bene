@@ -87,6 +87,9 @@ export const authService = {
     deleteCommunity: (communityId) => api.delete(`/admin/communities/${communityId}`),
     updateCommunity: (communityId, data) => api.put(`/admin/communities/${communityId}`, data),
     removeCommunityMember: (communityId, userId) => api.delete(`/admin/communities/${communityId}/members/${userId}`),
+
+    // Analytics (using existing dashboard stats for now)
+    getAnalyticsDashboard: () => api.get("/admin/dashboard/stats"),
   },
 };
 
