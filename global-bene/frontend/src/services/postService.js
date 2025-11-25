@@ -1,41 +1,11 @@
-import axios from 'axios';
+import axiosInstance from '../utils/axiosinstance';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Create authenticated API instance
+const api = axiosInstance;
 
-const api = axios.create({
-  baseURL: API,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Attach accessToken in requests when needed
-api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle 401 responses by clearing token
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('user');
-      // Optionally redirect to login
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Public API instance without auth interceptor
+// Create public API instance without auth interceptor
 const publicApi = axios.create({
-  baseURL: API,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
