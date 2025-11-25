@@ -25,6 +25,14 @@ router.post('/notifications/all', adminController.sendNotificationToAll);
 // =================== DASHBOARD ===================
 router.get('/dashboard/stats', adminController.getDashboardStats);
 
+// =================== ANALYTICS ===================
+router.get('/analytics/dashboard', adminController.getAnalyticsDashboard);
+router.get('/analytics/user-behavior', adminController.getUserBehaviorAnalytics);
+router.get('/analytics/post-ranking', adminController.getPostRankingAnalytics);
+router.get('/analytics/community-trending', adminController.getCommunityTrendingAnalytics);
+router.get('/analytics/nightly-job/status', adminController.getNightlyJobStatus);
+router.post('/analytics/nightly-job/trigger', adminController.triggerNightlyAnalytics);
+
 // =================== SPAM MANAGEMENT ===================
 router.post('/posts/:id/report', adminController.reportPost);
 router.get('/posts/reported', adminController.getReportedPosts);

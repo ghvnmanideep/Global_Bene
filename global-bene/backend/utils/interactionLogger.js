@@ -1,4 +1,5 @@
 const UserInteractionLog = require('../models/userInteractionLog');
+const { trackUserAction } = require('./mixpanelTracker');
 
 // Helper function to log user interactions
 const logInteraction = async (userId, action, targetType, targetId, metadata = {}) => {
@@ -19,6 +20,9 @@ const logInteraction = async (userId, action, targetType, targetId, metadata = {
     });
 
     await logEntry.save();
+
+    // Track in Mixpanel
+    trackUserAction(userId, action, targetType, targetId, enhancedMetadata);
   } catch (err) {
     console.error('Error logging interaction:', err);
     // Don't throw error to avoid breaking main functionality
