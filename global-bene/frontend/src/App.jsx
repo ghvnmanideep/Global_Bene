@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { communityService } from './services/communityService';
 
 // Lazy load components for better performance
@@ -32,6 +32,7 @@ const AdminSpamManagement = lazy(() => import('./components/AdminSpamManagement'
 const AdminCommunityManagement = lazy(() => import('./components/AdminCommunityManagement'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
+const AdminReports = lazy(() => import('./components/AdminReports'));
 const Notifications = lazy(() => import('./components/Notifications'));
 
 // Loading component
@@ -178,7 +179,7 @@ export default function App() {
                         sessionStorage.clear();
                         // Dispatch custom event to update sidebar immediately
                         window.dispatchEvent(new Event('authChange'));
-                        window.location.href = '/home';
+                        window.location.href = '/';
                       }}
                       className={`w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded shadow font-semibold ${sidebarOpen ? '' : 'px-2 text-sm'}`}
                     >{sidebarOpen ? 'Logout' : '🚪'}</button>
@@ -249,6 +250,7 @@ export default function App() {
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/spam" element={<AdminSpamReports />} />
                 <Route path="/admin/spam-management" element={<AdminSpamManagement />} />
+                <Route path="/admin/reports" element={<AdminReports />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />

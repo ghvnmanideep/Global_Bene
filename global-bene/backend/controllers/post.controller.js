@@ -29,7 +29,7 @@ exports.createPost = async (req, res) => {
     }
 
     // Validate content structure (optional)
-    if (content && typeof content !== 'object') {
+    if (content !== undefined && content !== null && typeof content !== 'object') {
       return res.status(400).json({ success: false, message: 'Content must be an object if provided' });
     }
 
@@ -224,13 +224,13 @@ const processSpamCheck = async (postId, title, content, tags) => {
         const { createSpamNotification } = require('./notification.controller');
         await createSpamNotification(post.author, postId, title, spamResult.reason, spamResult.confidence);
 
-        // Send email notification
-        try {
-          const { sendSpamNotificationEmail } = require('../utils/email.util');
-          await sendSpamNotificationEmail(user.email, user.username, title, spamResult.reason, spamResult.confidence);
-        } catch (emailErr) {
-          console.error('Failed to send spam email notification:', emailErr);
-        }
+        // Send email notification (SendGrid commented out for now)
+        // try {
+        //   const { sendSpamNotificationEmail } = require('../utils/email.util');
+        //   await sendSpamNotificationEmail(user.email, user.username, title, spamResult.reason, spamResult.confidence);
+        // } catch (emailErr) {
+        //   console.error('Failed to send spam email notification:', emailErr);
+        // }
 
         // Check if user should be banned (>5 spam posts)
         if (user.spamPostCount >= 5) {
@@ -243,13 +243,13 @@ const processSpamCheck = async (postId, title, content, tags) => {
           const { createBanNotification } = require('./notification.controller');
           await createBanNotification(post.author, user.bannedReason);
 
-          // Send ban email
-          try {
-            const { sendBanNotificationEmail } = require('../utils/email.util');
-            await sendBanNotificationEmail(user.email, user.username, user.bannedReason);
-          } catch (emailErr) {
-            console.error('Failed to send ban email notification:', emailErr);
-          }
+          // Send ban email (SendGrid commented out for now)
+          // try {
+          //   const { sendBanNotificationEmail } = require('../utils/email.util');
+          //   await sendBanNotificationEmail(user.email, user.username, user.bannedReason);
+          // } catch (emailErr) {
+          //   console.error('Failed to send ban email notification:', emailErr);
+          // }
         }
       }
     }

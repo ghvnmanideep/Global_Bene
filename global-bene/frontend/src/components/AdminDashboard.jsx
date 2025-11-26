@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { reportService } from '../services/reportService';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
+  const [reportStats, setReportStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchStats();
@@ -12,8 +16,12 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await authService.admin.getDashboardStats();
-      setStats(response.data.stats);
+      const [dashboardResponse, reportResponse] = await Promise.all([
+        authService.admin.getDashboardStats(),
+        reportService.getReportStats().catch(() => ({ data: { stats: {} } })) // Fallback if reports fail
+      ]);
+      setStats(dashboardResponse.data.stats);
+      setReportStats(reportResponse.data.stats);
     } catch (err) {
       setError('Failed to load dashboard stats');
       console.error('Dashboard error:', err);
@@ -64,6 +72,11 @@ const AdminDashboard = () => {
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Comments</h3>
           <p className="text-3xl font-bold text-purple-500">{stats?.totalComments || 0}</p>
         </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Open Reports</h3>
+          <p className="text-3xl font-bold text-red-500">{reportStats?.openReports || 0}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -99,46 +112,52 @@ const AdminDashboard = () => {
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <button
-            onClick={() => window.location.href = '/admin/users'}
+            onClick={() => navigate('/admin/users')}
             className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Users
           </button>
           <button
-            onClick={() => window.location.href = '/admin/posts'}
+            onClick={() => navigate('/admin/posts')}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Posts
           </button>
           <button
-            onClick={() => window.location.href = '/admin/communities'}
+            onClick={() => navigate('/admin/communities')}
             className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Manage Communities
           </button>
           <button
-            onClick={() => window.location.href = '/admin/notifications'}
+            onClick={() => navigate('/admin/notifications')}
             className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Send Notifications
           </button>
           <button
-            onClick={() => window.location.href = '/admin/spam'}
+            onClick={() => navigate('/admin/spam')}
             className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             View Reported Posts
           </button>
           <button
-            onClick={() => window.location.href = '/admin/spam-management'}
+            onClick={() => navigate('/admin/spam-management')}
             className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Spam Management
           </button>
           <button
-            onClick={() => window.location.href = '/admin/analytics'}
+            onClick={() => navigate('/admin/analytics')}
             className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Analytics Dashboard
+          </button>
+          <button
+            onClick={() => navigate('/admin/reports')}
+            className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            User Reports ({reportStats?.openReports || 0})
           </button>
         </div>
       </div>

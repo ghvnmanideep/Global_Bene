@@ -31,15 +31,25 @@ export default function EditCommunity() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError('');
 
       // Get current user
       const userStr = sessionStorage.getItem('user');
-      if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
+      if (!userStr) {
+        setError('User not authenticated');
+        return;
       }
+
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
 
       // Load community details
       const communityRes = await communityService.getCommunityById(id);
+      if (!communityRes.data) {
+        setError('Community not found');
+        return;
+      }
+
       const communityData = communityRes.data;
       setCommunity(communityData);
 
@@ -47,23 +57,33 @@ export default function EditCommunity() {
       setSettingsForm({
         displayName: communityData.displayName || '',
         description: communityData.description || '',
-        rules: Array.isArray(communityData.rules) ? communityData.rules.join('\n') : '',
+        rules: Array.isArray(communityData.rules) ? communityData.rules.join('\n') : communityData.rules || '',
         isPrivate: communityData.isPrivate || false,
         iconUrl: communityData.iconUrl || '',
         bannerUrl: communityData.bannerUrl || ''
       });
 
       // Load members
-      const membersRes = await communityService.getCommunityMembers(id);
-      setMembers(membersRes.data.members || []);
+      try {
+        const membersRes = await communityService.getCommunityMembers(id);
+        setMembers(membersRes.data.members || []);
+      } catch (membersErr) {
+        console.error('Error loading members:', membersErr);
+        // Don't fail completely if members can't be loaded
+      }
 
       // Load posts
-      const postsRes = await postService.getAllPosts({ communityId: id, limit: 50 });
-      setPosts(postsRes.data.posts || []);
+      try {
+        const postsRes = await postService.getAllPosts({ communityId: id, limit: 50 });
+        setPosts(postsRes.data.posts || []);
+      } catch (postsErr) {
+        console.error('Error loading posts:', postsErr);
+        // Don't fail completely if posts can't be loaded
+      }
 
     } catch (err) {
       console.error('Error loading data:', err);
-      setError('Failed to load community data');
+      setError(err.response?.data?.message || 'Failed to load community data');
     } finally {
       setLoading(false);
     }
@@ -82,7 +102,8 @@ export default function EditCommunity() {
       loadData(); // Refresh data
     } catch (err) {
       console.error('Error updating community:', err);
-      alert('Failed to update community');
+      const errorMessage = err.response?.data?.message || 'Failed to update community';
+      alert(errorMessage);
     }
   };
 
@@ -97,7 +118,8 @@ export default function EditCommunity() {
       loadData(); // Refresh data
     } catch (err) {
       console.error('Error removing member:', err);
-      alert('Failed to remove member');
+      const errorMessage = err.response?.data?.message || 'Failed to remove member';
+      alert(errorMessage);
     }
   };
 
@@ -135,7 +157,7 @@ export default function EditCommunity() {
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
   if (!community || !currentUser) return <div className="p-8 text-center">Access denied</div>;
 
-  const isCreator = currentUser._id === community.creator._id;
+  const isCreator = currentUser._id === community.creator._id || currentUser._id === community.creator;
 
   if (!isCreator) {
     return <div className="p-8 text-center">Only community creators can edit communities</div>;

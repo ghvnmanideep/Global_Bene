@@ -1,10 +1,13 @@
-const bcrypt = require('bcryptjs');
+ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const { logActivity } = require('../utils/logActivity.utils');
+const { setUserProfile, setUserSegmentation } = require('../utils/mixpanelTracker');
+const { getUserSegmentationData } = require('../utils/userSegmentation');
+// const { sendMail } = require('../utils/email.util'); // Commented out for now - using nodemailer
 
 
 // Initialize Google OAuth2 client
@@ -14,7 +17,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Environment variables or defaults
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// Configure mail transporter
+// Configure mail transporter (nodemailer)
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: process.env.EMAIL_PORT || 587,
@@ -26,16 +29,11 @@ const transporter = nodemailer.createTransport({
   tls: { rejectUnauthorized: false },
 });
 
-// Helper to send email - TEMPORARILY DISABLED FOR TESTING
+// Helper to send email using nodemailer
 const sendMail = async ({ to, subject, html }) => {
-  // TEMPORARY: Skip email sending for testing core functionality
-  console.log('📧 Email sending disabled for testing - would send to:', to, 'Subject:', subject);
-
-  // Uncomment below to re-enable email sending
-  /*
   try {
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || `"Global Bene" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -43,7 +41,6 @@ const sendMail = async ({ to, subject, html }) => {
   } catch (err) {
     console.error('Email send error:', err);
   }
-  */
 };
 
 // Password validation regex
@@ -86,6 +83,47 @@ exports.register = async (req, res) => {
     const user = new User({ username: trimmedUsername, email: trimmedEmail, passwordHash: password, role: userRole });
     await user.save();
 
+    // Store complete user data in Mixpanel
+    setUserProfile(user._id.toString(), {
+      email: trimmedEmail,
+      username: trimmedUsername,
+      role: userRole,
+      createdAt: user.createdAt.toISOString(),
+      emailVerified: user.emailVerified,
+      account_status: 'active',
+      user_role: userRole,
+      bio: '',
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0,
+      communities_joined: 0,
+      total_interactions: 0,
+      email_notifications: true,
+      push_notifications: true,
+      theme_preference: 'system'
+    });
+
+    // Set initial user segmentation data for user-wise analytics
+    const initialSegmentation = {
+      activityLevel: 'inactive', // New user starts as inactive
+      engagementScore: 0,
+      lastActivityDate: new Date().toISOString(),
+      daysSinceRegistration: 0,
+      daysSinceLastActivity: 0,
+      userCohort: 'new_this_month',
+      totalPostsCreated: 0,
+      totalCommentsMade: 0,
+      totalCommunitiesJoined: 0,
+      totalLikesGiven: 0,
+      totalSharesMade: 0,
+      preferredCategories: [],
+      preferredTopics: [],
+      accountStatus: 'active',
+      isPremium: false,
+      notificationPreferences: {}
+    };
+    setUserSegmentation(user._id.toString(), initialSegmentation);
+
     // Log registration activity
     await logActivity(
       user._id,
@@ -118,11 +156,11 @@ exports.register = async (req, res) => {
       accessToken: token,
       _id: user._id.toString(),
       username: user.username,
+      email: user.email,
       role: user.role || 'user',
     });
 
-    // Original email verification code (commented out for testing)
-    /*
+    
     // Generate email verification OTP
     const otp = generateOTP();
     user.otpCode = otp;
@@ -131,10 +169,10 @@ exports.register = async (req, res) => {
 
     const html = `...`; // Email HTML template
 
-    await sendMail({ to: email, subject: 'Verify your email • Global Bene', html });
+    await sendMail(email, 'Verify your email • Global Bene', html);
 
     res.status(201).json({ message: 'Registered successfully. Check your email.' });
-    */
+
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ message: 'Server error' });
@@ -205,7 +243,7 @@ exports.verifyOtp = async (req, res) => {
           </td>
         </tr>
       </table>`;
-    await sendMail({ to: user.email, subject: 'Welcome to Global Bene!', html });
+    await sendMail(user.email, 'Welcome to Global Bene!', html);
     res.json({ message: 'Email verified successfully' });
   } catch (err) {
     console.error('OTP verify error:', err);
@@ -253,6 +291,12 @@ exports.login = async (req, res) => {
       null
     );
 
+    // Update Mixpanel profile with login information
+    setUserProfile(user._id.toString(), {
+      $last_login: new Date().toISOString(),
+      last_activity: new Date().toISOString()
+    });
+
     // Send welcome email on successful login only for non-admin users
     if (user.role !== 'admin') {
       const welcomeHtml = `
@@ -297,7 +341,7 @@ exports.login = async (req, res) => {
             </td>
           </tr>
         </table>`;
-      await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+      await sendMail(user.email, 'Welcome back to Global Bene!', welcomeHtml);
     }
 
     res.json({
@@ -305,6 +349,7 @@ exports.login = async (req, res) => {
       token, // Keep both for backward compatibility
       _id: user._id.toString(),
       username: user.username,
+      email: user.email,
       role: user.role || 'user',
     });
   } catch (err) {
@@ -365,7 +410,7 @@ exports.forgotPassword = async (req, res) => {
           </td>
         </tr>
       </table>`;
-    await sendMail({ to: email, subject: 'Reset your password • Global Bene', html: resetHtml });
+    await sendMail(email, 'Reset your password • Global Bene', resetHtml);
     res.json({ message: 'If email exists, reset instructions sent.' });
   } catch (err) {
     console.error('Forgot password error:', err);
@@ -416,7 +461,7 @@ exports.resetPassword = async (req, res) => {
           </td>
         </tr>
       </table>`;
-    await sendMail({ to: user.email, subject: 'Your password was changed • Global Bene', html: confirmHtml });
+    await sendMail(user.email, 'Your password was changed • Global Bene', confirmHtml);
     res.json({ message: 'Password has been updated' });
   } catch (err) {
     console.error('Reset password error:', err);
@@ -660,6 +705,12 @@ exports.googleAuth = async (req, res) => {
       null
     );
 
+    // Update Mixpanel profile with login information
+    setUserProfile(user._id.toString(), {
+      $last_login: new Date().toISOString(),
+      last_activity: new Date().toISOString()
+    });
+
     // Send welcome email on successful Google sign-in only for non-admin users
     if (user.role !== 'admin') {
       const welcomeHtml = `
@@ -704,7 +755,7 @@ exports.googleAuth = async (req, res) => {
             </td>
           </tr>
         </table>`;
-      await sendMail({ to: user.email, subject: 'Welcome back to Global Bene!', html: welcomeHtml });
+      await sendMail(user.email, 'Welcome back to Global Bene!', welcomeHtml);
     }
 
     res.status(200).json({

@@ -5,6 +5,7 @@ const Comment = require('../models/comment');
 const SpamPost = require('../models/spamPost');
 const UserInteractionLog = require('../models/userInteractionLog');
 const NightlyJob = require('../models/nightlyJob');
+const Report = require('../models/report');
 const { createNotification } = require('./notification.controller');
 
 // =================== ADMIN USER MANAGEMENT ===================
@@ -306,6 +307,13 @@ exports.getDashboardStats = async (req, res) => {
     const bannedUsers = await User.countDocuments({ isBanned: true });
     const totalSpamPosts = await SpamPost.countDocuments();
 
+    // Get report statistics
+    const totalReports = await Report.countDocuments();
+    const openReports = await Report.countDocuments({ status: 'open' });
+    const recentReports = await Report.countDocuments({
+      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    });
+
     // Get interaction analytics from UserInteractionLog
     const interactionStats = await UserInteractionLog.aggregate([
       {
@@ -342,6 +350,10 @@ exports.getDashboardStats = async (req, res) => {
         recentPosts,
         bannedUsers,
         totalSpamPosts,
+        // Report statistics
+        totalReports,
+        openReports,
+        recentReports,
         // Interaction analytics
         totalUpvotes,
         totalDownvotes,
