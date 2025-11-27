@@ -29,14 +29,22 @@ exports.createPost = async (req, res) => {
     }
 
     // Validate content structure (optional)
-    if (content !== undefined && content !== null && typeof content !== 'object') {
+    let parsedContent = content;
+    if (content !== undefined && content !== null && typeof content === 'string') {
+      try {
+        parsedContent = JSON.parse(content);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Content must be a valid JSON object if provided as string' });
+      }
+    }
+    if (parsedContent !== undefined && parsedContent !== null && typeof parsedContent !== 'object') {
       return res.status(400).json({ success: false, message: 'Content must be an object if provided' });
     }
 
     // Check if content has valid components (all optional)
-    const hasText = content?.text && content.text.trim() !== '';
-    const hasImages = content?.images && Array.isArray(content.images) && content.images.length > 0;
-    const hasLinks = content?.links && Array.isArray(content.links) && content.links.length > 0;
+    const hasText = parsedContent?.text && parsedContent.text.trim() !== '';
+    const hasImages = parsedContent?.images && Array.isArray(parsedContent.images) && parsedContent.images.length > 0;
+    const hasLinks = parsedContent?.links && Array.isArray(parsedContent.links) && parsedContent.links.length > 0;
 
     // Allow posts with no content (title-only posts)
     // if (!hasText && !hasImages && !hasLinks) {
@@ -92,10 +100,10 @@ exports.createPost = async (req, res) => {
     // Create the post
     const post = new Post({
       title: title.trim(),
-      content: content ? {
-        text: content.text?.trim() || '',
-        images: content.images || [],
-        links: content.links || []
+      content: parsedContent ? {
+        text: parsedContent.text?.trim() || '',
+        images: parsedContent.images || [],
+        links: parsedContent.links || []
       } : {
         text: '',
         images: [],
