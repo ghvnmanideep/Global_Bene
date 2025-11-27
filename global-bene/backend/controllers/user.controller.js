@@ -157,6 +157,7 @@
 const User = require("../models/user");
 const { createNotification } = require('./notification.controller');
 const { logUserFollow, logUserUnfollow, logProfileView } = require('../utils/interactionLogger');
+const { setUserProfile } = require('../utils/mixpanelTracker');
 
 // =================== GET CURRENT USER ===================
 exports.getMe = async (req, res) => {
@@ -204,6 +205,34 @@ exports.updateProfile = async (req, res) => {
     };
 
     await user.save();
+
+    // Update Mixpanel profile with complete user data
+    const profileData = {
+      email: user.email,
+      username: user.username,
+      role: user.role || 'user',
+      createdAt: user.createdAt.toISOString(),
+      emailVerified: user.emailVerified,
+      account_status: user.isBanned ? 'banned' : 'active',
+      user_role: user.role || 'user',
+      bio: user.profile?.bio || '',
+      gender: user.profile?.gender || '',
+      date_of_birth: user.profile?.dob || '',
+      phone: user.profile?.mobile || '',
+      followers_count: user.followers?.length || 0,
+      following_count: user.following?.length || 0,
+      posts_count: user.postsCount || 0,
+      communities_joined: user.communitiesJoined || 0,
+      total_interactions: user.totalInteractions || 0,
+      last_activity: user.lastActivity || user.createdAt.toISOString(),
+      email_notifications: true,
+      push_notifications: true,
+      theme_preference: 'system',
+      last_profile_update: new Date().toISOString()
+    };
+
+    setUserProfile(user._id.toString(), profileData);
+
     res.json({
       message: "Profile updated successfully",
       profile: user.profile,

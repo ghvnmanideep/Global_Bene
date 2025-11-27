@@ -32,6 +32,7 @@ const AdminSpamManagement = lazy(() => import('./components/AdminSpamManagement'
 const AdminCommunityManagement = lazy(() => import('./components/AdminCommunityManagement'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const AdminAnalytics = lazy(() => import('./components/AdminAnalytics'));
+const AdminReports = lazy(() => import('./components/AdminReports'));
 const Notifications = lazy(() => import('./components/Notifications'));
 
 // Loading component
@@ -249,6 +250,7 @@ export default function App() {
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/spam" element={<AdminSpamReports />} />
                 <Route path="/admin/spam-management" element={<AdminSpamManagement />} />
+                <Route path="/admin/reports" element={<AdminReports />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />

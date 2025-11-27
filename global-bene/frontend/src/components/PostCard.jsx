@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { postService } from '../services/postService';
 import { commentService } from '../services/commentService';
 import { authService } from '../services/authService';
+import { reportService } from '../services/reportService';
 import CommentSection from './CommentSection';
 
 function MiniProfileModal({ userId, onClose }) {
@@ -138,6 +139,9 @@ export default function PostCard({ post, onUpdate }) {
   const [isSaved, setIsSaved] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
   const [currentPost, setCurrentPost] = useState(post); // Local post state for immediate updates
   
   // Get user ID from session storage or token
@@ -250,6 +254,41 @@ export default function PostCard({ post, onUpdate }) {
         alert('Please log in to save posts');
         window.location.href = '/login';
       }
+    }
+  };
+
+  const handleReport = async (e) => {
+    e.preventDefault();
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) {
+      alert('Please log in to report posts');
+      window.location.href = '/login';
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      alert('Please provide a reason for reporting');
+      return;
+    }
+
+    setIsReporting(true);
+    try {
+      await reportService.createReport('Post', currentPost._id, reportReason);
+      alert('Report submitted successfully. Thank you for helping keep our community safe.');
+      setShowReportModal(false);
+      setReportReason('');
+    } catch (err) {
+      console.error('Error reporting post:', err);
+      if (err.response?.status === 400) {
+        alert(err.response.data.message || 'You have already reported this post');
+      } else if (err.response?.status === 401) {
+        alert('Please log in to report posts');
+        window.location.href = '/login';
+      } else {
+        alert('Failed to submit report. Please try again.');
+      }
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -540,6 +579,26 @@ export default function PostCard({ post, onUpdate }) {
               </svg>
               <span className="font-medium">Share</span>
             </button>
+            <button
+              onClick={() => setShowReportModal(true)}
+              disabled={!userId}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                !userId
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-500'
+              }`}
+              title={!userId ? 'Login to report posts' : 'Report this post'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+              <span className="font-medium">Report</span>
+            </button>
           </div>
 
           {/* Comment Section */}
@@ -561,6 +620,46 @@ export default function PostCard({ post, onUpdate }) {
                 >
                   OK
                 </button>
+              </div>
+            </div>
+          )}
+          {showReportModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Report Post</h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
+                  Please provide a reason for reporting this post. Your report will be reviewed by our moderators.
+                </p>
+                <form onSubmit={handleReport}>
+                  <textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Describe why you're reporting this post..."
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    rows={4}
+                    maxLength={500}
+                    required
+                  />
+                  <div className="flex justify-end gap-3 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReportModal(false);
+                        setReportReason('');
+                      }}
+                      className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isReporting || !reportReason.trim()}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isReporting ? 'Reporting...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

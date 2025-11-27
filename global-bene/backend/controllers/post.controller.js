@@ -29,14 +29,22 @@ exports.createPost = async (req, res) => {
     }
 
     // Validate content structure (optional)
-    if (content && typeof content !== 'object') {
+    let parsedContent = content;
+    if (content !== undefined && content !== null && typeof content === 'string') {
+      try {
+        parsedContent = JSON.parse(content);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: 'Content must be a valid JSON object if provided as string' });
+      }
+    }
+    if (parsedContent !== undefined && parsedContent !== null && typeof parsedContent !== 'object') {
       return res.status(400).json({ success: false, message: 'Content must be an object if provided' });
     }
 
     // Check if content has valid components (all optional)
-    const hasText = content?.text && content.text.trim() !== '';
-    const hasImages = content?.images && Array.isArray(content.images) && content.images.length > 0;
-    const hasLinks = content?.links && Array.isArray(content.links) && content.links.length > 0;
+    const hasText = parsedContent?.text && parsedContent.text.trim() !== '';
+    const hasImages = parsedContent?.images && Array.isArray(parsedContent.images) && parsedContent.images.length > 0;
+    const hasLinks = parsedContent?.links && Array.isArray(parsedContent.links) && parsedContent.links.length > 0;
 
     // Allow posts with no content (title-only posts)
     // if (!hasText && !hasImages && !hasLinks) {
@@ -92,10 +100,10 @@ exports.createPost = async (req, res) => {
     // Create the post
     const post = new Post({
       title: title.trim(),
-      content: content ? {
-        text: content.text?.trim() || '',
-        images: content.images || [],
-        links: content.links || []
+      content: parsedContent ? {
+        text: parsedContent.text?.trim() || '',
+        images: parsedContent.images || [],
+        links: parsedContent.links || []
       } : {
         text: '',
         images: [],
@@ -224,13 +232,13 @@ const processSpamCheck = async (postId, title, content, tags) => {
         const { createSpamNotification } = require('./notification.controller');
         await createSpamNotification(post.author, postId, title, spamResult.reason, spamResult.confidence);
 
-        // Send email notification
-        try {
-          const { sendSpamNotificationEmail } = require('../utils/email.util');
-          await sendSpamNotificationEmail(user.email, user.username, title, spamResult.reason, spamResult.confidence);
-        } catch (emailErr) {
-          console.error('Failed to send spam email notification:', emailErr);
-        }
+        // Send email notification (SendGrid commented out for now)
+        // try {
+        //   const { sendSpamNotificationEmail } = require('../utils/email.util');
+        //   await sendSpamNotificationEmail(user.email, user.username, title, spamResult.reason, spamResult.confidence);
+        // } catch (emailErr) {
+        //   console.error('Failed to send spam email notification:', emailErr);
+        // }
 
         // Check if user should be banned (>5 spam posts)
         if (user.spamPostCount >= 5) {
@@ -243,13 +251,13 @@ const processSpamCheck = async (postId, title, content, tags) => {
           const { createBanNotification } = require('./notification.controller');
           await createBanNotification(post.author, user.bannedReason);
 
-          // Send ban email
-          try {
-            const { sendBanNotificationEmail } = require('../utils/email.util');
-            await sendBanNotificationEmail(user.email, user.username, user.bannedReason);
-          } catch (emailErr) {
-            console.error('Failed to send ban email notification:', emailErr);
-          }
+          // Send ban email (SendGrid commented out for now)
+          // try {
+          //   const { sendBanNotificationEmail } = require('../utils/email.util');
+          //   await sendBanNotificationEmail(user.email, user.username, user.bannedReason);
+          // } catch (emailErr) {
+          //   console.error('Failed to send ban email notification:', emailErr);
+          // }
         }
       }
     }

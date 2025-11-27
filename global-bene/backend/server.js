@@ -38,6 +38,7 @@ const recommendationRoutes = require('./routes/recommendation.routes');
 const activityLogRoutes = require('./routes/activityLog.routes');
 const voteRoutes = require('./routes/vote.routes');
 const searchRoutes = require('./routes/search.routes');
+const reportRoutes = require('./routes/report.routes');
 
 // Passport config
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -158,6 +159,7 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/votes', voteRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/reports', reportRoutes);
 
 // ✅ Health check endpoint
 app.get('/health', (req, res) => {

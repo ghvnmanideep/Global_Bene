@@ -5,6 +5,7 @@ const Post = require('../models/post');
 const Community = require('../models/community');
 const NightlyJob = require('../models/nightlyJob');
 const { setUserProfile } = require('../utils/mixpanelTracker');
+const { updateAllUserSegmentation } = require('../utils/userSegmentation');
 
 const runNightlyAnalytics = async () => {
   console.log('Starting nightly analytics job...');
@@ -12,6 +13,9 @@ const runNightlyAnalytics = async () => {
   try {
     // Calculate user interests
     await calculateUserInterests();
+
+    // Update user segmentation data for Mixpanel
+    await updateUserSegmentation();
 
     // Identify trending communities
     await identifyTrendingCommunities();
@@ -77,12 +81,34 @@ const calculateUserInterests = async () => {
     user.calculatedTopics = calculatedTopics;
     await user.save();
 
-    // Update Mixpanel profile
-    setUserProfile(user._id.toString(), {
+    // Get last activity date
+    const lastActivityLog = recentLogs.length > 0 ? recentLogs[0] : null; // recentLogs is sorted by timestamp desc
+
+    // Update complete user profile in Mixpanel
+    const userProfileData = {
+      email: user.email,
+      username: user.username,
+      role: user.role || 'user',
+      createdAt: user.createdAt.toISOString(),
+      emailVerified: user.emailVerified,
+      account_status: user.isBanned ? 'banned' : 'active',
+      user_role: user.role || 'user',
+      bio: user.profile?.bio || '',
+      gender: user.profile?.gender || '',
+      date_of_birth: user.profile?.dob || '',
+      phone: user.profile?.mobile || '',
+      followers_count: user.followers?.length || 0,
+      following_count: user.following?.length || 0,
+      posts_count: user.postsCount || 0,
+      communities_joined: user.communitiesJoined || 0,
+      total_interactions: recentLogs.length,
+      last_activity: lastActivityLog ? lastActivityLog.timestamp.toISOString() : user.createdAt.toISOString(),
       interests: calculatedInterests,
       topics: calculatedTopics,
-      last_analytics_update: new Date()
-    });
+      last_analytics_update: new Date().toISOString()
+    };
+
+    setUserProfile(user._id.toString(), userProfileData);
   }
 
   const endTime = new Date();
@@ -103,6 +129,51 @@ const calculateUserInterests = async () => {
       endTime
     }
   });
+};
+
+// Update user segmentation data for Mixpanel user-wise analytics
+const updateUserSegmentation = async () => {
+  const startTime = new Date();
+  console.log('Updating user segmentation data for Mixpanel...');
+
+  try {
+    const result = await updateAllUserSegmentation();
+
+    const endTime = new Date();
+
+    // Store results in nightlyJob collection
+    await NightlyJob.create({
+      jobType: 'user_segmentation',
+      date: new Date(),
+      status: result.error ? 'failed' : 'completed',
+      data: result,
+      metadata: {
+        processedCount: result.updatedCount || 0,
+        errorCount: result.errorCount || 0,
+        duration: endTime - startTime,
+        startTime,
+        endTime
+      }
+    });
+
+    console.log(`User segmentation update completed: ${result.updatedCount || 0} users updated`);
+
+  } catch (error) {
+    console.error('User segmentation update error:', error);
+
+    // Store error in nightlyJob collection
+    await NightlyJob.create({
+      jobType: 'user_segmentation',
+      date: new Date(),
+      status: 'failed',
+      data: { error: error.message },
+      metadata: {
+        duration: new Date() - startTime,
+        startTime,
+        endTime: new Date()
+      }
+    });
+  }
 };
 
 // Identify trending communities

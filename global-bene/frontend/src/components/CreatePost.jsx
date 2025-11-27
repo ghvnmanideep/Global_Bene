@@ -75,14 +75,21 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
         // Update existing post
         const updateData = {
           title: formData.title,
-          content,
           category,
         };
+
+        // Only add content if it has actual content (not just an empty object)
+        if (content.text || (content.images && content.images.length > 0) || (content.links && content.links.length > 0)) {
+          updateData.content = content;
+        }
 
         if (imageFile) {
           const fd = new FormData();
           fd.append('title', formData.title);
-          fd.append('content', JSON.stringify(content));
+          // Only add content if it has actual data
+          if (content.text || (content.images && content.images.length > 0) || (content.links && content.links.length > 0)) {
+            fd.append('content', JSON.stringify(content));
+          }
           fd.append('category', category);
           fd.append('image', imageFile);
           response = await postService.updatePost(editPost._id, fd);
@@ -93,10 +100,14 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
         // Create new post
         const createData = {
           title: formData.title,
-          content,
           category,
           tags: [], // Backend expects tags array
         };
+
+        // Only add content if it has actual content (not just an empty object)
+        if (content.text || (content.images && content.images.length > 0) || (content.links && content.links.length > 0)) {
+          createData.content = content;
+        }
 
         if (postType === 'community' && formData.communityId) {
           createData.communityId = formData.communityId;
@@ -105,7 +116,10 @@ export default function CreatePost({ onClose, onSuccess, communities, editPost }
         if (imageFile) {
           const fd = new FormData();
           fd.append('title', formData.title);
-          fd.append('content', JSON.stringify(content));
+          // Only add content if it has actual data
+          if (content.text || (content.images && content.images.length > 0) || (content.links && content.links.length > 0)) {
+            fd.append('content', JSON.stringify(content));
+          }
           fd.append('category', category);
           if (postType === 'community' && formData.communityId) {
             fd.append('communityId', formData.communityId);

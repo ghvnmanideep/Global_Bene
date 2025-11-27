@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { reportService } from '../services/reportService';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
+  const [reportStats, setReportStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -14,8 +16,12 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await authService.admin.getDashboardStats();
-      setStats(response.data.stats);
+      const [dashboardResponse, reportResponse] = await Promise.all([
+        authService.admin.getDashboardStats(),
+        reportService.getReportStats().catch(() => ({ data: { stats: {} } })) // Fallback if reports fail
+      ]);
+      setStats(dashboardResponse.data.stats);
+      setReportStats(reportResponse.data.stats);
     } catch (err) {
       setError('Failed to load dashboard stats');
       console.error('Dashboard error:', err);
@@ -65,6 +71,11 @@ const AdminDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Comments</h3>
           <p className="text-3xl font-bold text-purple-500">{stats?.totalComments || 0}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Open Reports</h3>
+          <p className="text-3xl font-bold text-red-500">{reportStats?.openReports || 0}</p>
         </div>
       </div>
 
@@ -141,6 +152,12 @@ const AdminDashboard = () => {
             className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
           >
             Analytics Dashboard
+          </button>
+          <button
+            onClick={() => navigate('/admin/reports')}
+            className="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            User Reports ({reportStats?.openReports || 0})
           </button>
         </div>
       </div>
